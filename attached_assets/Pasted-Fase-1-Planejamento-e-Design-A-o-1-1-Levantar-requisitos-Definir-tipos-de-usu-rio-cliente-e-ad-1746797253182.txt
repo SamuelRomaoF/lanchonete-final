@@ -1,0 +1,160 @@
+Fase 1: Planejamento e Design
+
+Ação 1.1: Levantar requisitos
+
+Definir tipos de usuário (cliente e admin).
+
+Listar funcionalidades essenciais (login/registro, CRUD de lanches, carrinho, checkout, histórico).
+
+Ação 1.2: Fluxos de navegação (user flows)
+
+Mapa de telas: login → cadastro → home cliente → carrinho → checkout → histórico.
+
+Mapa admin: login admin → dashboard → gerenciar lanches → ver histórico de pagamentos.
+
+Ação 1.3: Wireframes de baixa fidelidade
+
+Esboçar cada tela (papel ou Figma).
+
+Tecnologias sugeridas: Figma (wireframes), Miro (fluxogramas).
+
+Fase 2: Configuração do Ambiente (Replit)
+
+Ação 2.1: Criar novo repl (Stack “Node.js” ou “HTML, CSS, JS”).
+
+Ação 2.2: Estrutura de pastas
+
+bash
+Copiar
+Editar
+/frontend  
+/backend  
+/shared (modelos, utilitários)  
+Ação 2.3: Versionamento
+
+Inicializar Git, conectar a um repositório GitHub.
+
+Tecnologias: Replit (IDE), Git/GitHub.
+
+Fase 3: Frontend
+
+Subetapa 3.1: Setup inicial
+
+Iniciar React (create-react-app) ou Next.js em PT‑BR.
+
+Configurar ESLint/Prettier para padronização.
+
+Subetapa 3.2: Layout e componentes
+
+Navbar, Footer, Botões, Cards de lanche.
+
+Biblioteca UI leve (Chakra UI, Tailwind CSS).
+
+Subetapa 3.3: Autenticação
+
+Formulários de login/registro.
+
+Gerenciar token JWT no localStorage.
+
+Subetapa 3.4: Tela Cliente
+
+Listagem de lanches com filtros.
+
+Carrinho: adicionar, remover, quantidade.
+
+Checkout: escolher PIX ou cartão.
+
+Subetapa 3.5: Tela Admin
+
+Dashboard: métricas básicas (número de pedidos, faturamento).
+
+CRUD de lanches (formulário de nome, descrição, preço, imagem).
+
+Histórico de vendas: tabela com data/hora, cliente, valor.
+
+Tecnologias: React ou Next.js, Tailwind CSS, Axios.
+
+Fase 4: Backend e Integrações
+
+Subetapa 4.1: API REST com Express.js
+
+Modelos: Usuário, Lanche, Pedido, Pagamento.
+
+Rotas: /auth, /lanches, /carrinho, /pedidos, /pagamentos.
+
+Subetapa 4.2: Banco de dados
+
+Escolher PostgreSQL ou MongoDB (Replit oferece ambos).
+
+Definir esquema (users, products, orders, payments).
+
+Subetapa 4.3: Autorização e segurança
+
+JWT para rotas protegidas.
+
+Hash de senha com bcrypt.
+
+Subetapa 4.4: Integração PIX/Cartão
+
+PIX: usar API Gerencianet ou API do Banco Central.
+
+Cartão: integrar Stripe ou PayPal (ambos suportam cartão).
+
+Armazenar dados de cartão com tokenização (PCI‑compliant).
+
+Tecnologias: Node.js, Express.js, Sequelize ou Mongoose, JWT, bcrypt, Gerencianet/Stripe SDK.
+
+Fase 5: Testes e Qualidade
+
+Ação 5.1: Testes unitários
+
+Jest (backend) e React Testing Library (frontend).
+
+Ação 5.2: Testes de integração
+
+Simular fluxo de compra completo (login → checkout).
+
+Ação 5.3: Testes de usabilidade
+
+Convidar colegas para “click‑through” e coletar feedback.
+
+Ação 5.4: Revisão de código
+
+Code reviews no GitHub antes do merge.
+
+Tecnologias: Jest, Cypress (e2e).
+
+Fase 6: Deploy e Monitoramento
+
+Subetapa 6.1: Preparar build
+
+npm run build no frontend; variáveis de ambiente no backend.
+
+Subetapa 6.2: Hospedagem
+
+Frontend em Netlify/Vercel; backend em Replit Deploy ou Heroku.
+
+Subetapa 6.3: Banco de dados em produção
+
+Configurar cluster no Railway ou Amazon RDS.
+
+Subetapa 6.4: Monitoramento e logs
+
+Integrar Sentry (erros) e LogRocket (frontend).
+
+Tecnologias: Vercel/Netlify, Heroku/Replit Deploy, Sentry.
+
+Dicas Adicionais:
+
+Use Docker no Replit para garantir parity entre dev e prod.
+
+Documente a API com Swagger ou OpenAPI.
+
+Mantenha o layout responsivo: teste em mobile e desktop.
+
+Priorize UX simples: botões claros, feedbacks em cada ação.
+
+Garanta segurança de dados: HTTPS obrigatório, CORS configurado.
+
+Versione seu progresso: crie tags ou releases no GitHub a cada fase concluída.
+
