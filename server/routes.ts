@@ -18,9 +18,7 @@ function handleZodError(error: z.ZodError) {
 
 // Middleware para verificar autenticação
 const authMiddleware = (req: Request, res: Response, next: Function) => {
-  const user = (req as any).session?.user;
-  
-  if (!user) {
+  if (!req.session.user) {
     return res.status(401).json({ message: "Usuário não autenticado" });
   }
   
@@ -29,9 +27,7 @@ const authMiddleware = (req: Request, res: Response, next: Function) => {
 
 // Middleware para verificar se é admin
 const adminMiddleware = (req: Request, res: Response, next: Function) => {
-  const user = (req as any).session?.user;
-  
-  if (!user || user.type !== 'admin') {
+  if (!req.session.user || req.session.user.type !== 'admin') {
     return res.status(403).json({ message: "Acesso restrito a administradores" });
   }
   
@@ -61,7 +57,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Salvar usuário na sessão
-      (req as any).session.user = {
+      req.session.user = {
         id: user.id,
         name: user.name,
         email: user.email,
@@ -125,7 +121,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post('/api/auth/logout', (req, res) => {
-    (req as any).session.destroy((err: any) => {
+    req.session.destroy((err) => {
       if (err) {
         return res.status(500).json({ message: "Erro ao fazer logout" });
       }
@@ -136,13 +132,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.get('/api/auth/me', (req, res) => {
-    const user = (req as any).session?.user;
-    
-    if (!user) {
+    if (!req.session.user) {
       return res.status(401).json({ message: "Usuário não autenticado" });
     }
     
-    return res.status(200).json({ user });
+    return res.status(200).json({ user: req.session.user });
   });
   
   // ==== Rotas de categorias ====
