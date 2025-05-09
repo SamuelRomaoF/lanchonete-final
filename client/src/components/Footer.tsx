@@ -8,10 +8,10 @@ const Footer = () => {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <i className="ri-restaurant-2-fill text-3xl text-primary"></i>
-              <span className="text-xl font-bold text-white font-poppins">FastLanche</span>
+              <span className="text-xl font-bold text-white font-poppins">FastLanche Faculdade</span>
             </div>
             <p className="text-neutral-300 mb-4">
-              Lanches deliciosos, entrega rápida e atendimento de qualidade para você!
+              Lanches deliciosos e atendimento de qualidade para os estudantes e funcionários da faculdade!
             </p>
             <div className="flex space-x-4">
               <a 
@@ -74,19 +74,19 @@ const Footer = () => {
             <ul className="space-y-2 text-neutral-300">
               <li className="flex justify-between">
                 <span>Segunda a Sexta</span>
-                <span>11h às 23h</span>
+                <span>7h às 22h</span>
               </li>
               <li className="flex justify-between">
                 <span>Sábado</span>
-                <span>11h às 00h</span>
+                <span>8h às 14h</span>
               </li>
               <li className="flex justify-between">
                 <span>Domingo</span>
-                <span>12h às 22h</span>
+                <span>Fechado</span>
               </li>
               <li className="flex justify-between">
-                <span>Feriados</span>
-                <span>12h às 22h</span>
+                <span>Período de Férias</span>
+                <span>Horários Especiais</span>
               </li>
             </ul>
           </div>
@@ -97,7 +97,7 @@ const Footer = () => {
               <li className="flex items-start space-x-2">
                 <i className="ri-map-pin-line text-neutral-300 mt-1"></i>
                 <span className="text-neutral-300">
-                  Rua Exemplo, 123 - Centro, Cidade - UF, 00000-000
+                  Campus Universitário - Bloco C, Próximo à Biblioteca
                 </span>
               </li>
               <li className="flex items-center space-x-2">
@@ -106,7 +106,7 @@ const Footer = () => {
               </li>
               <li className="flex items-center space-x-2">
                 <i className="ri-mail-line text-neutral-300"></i>
-                <span className="text-neutral-300">contato@fastlanche.com.br</span>
+                <span className="text-neutral-300">lanchonete@faculdade.edu.br</span>
               </li>
             </ul>
           </div>

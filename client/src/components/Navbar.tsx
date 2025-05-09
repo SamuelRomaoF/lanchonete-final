@@ -68,7 +68,7 @@ const Navbar = () => {
             <div className="flex items-center space-x-2">
               <Link href="/" className="flex items-center space-x-2">
                 <i className="ri-restaurant-2-fill text-3xl text-primary"></i>
-                <span className="text-2xl font-bold text-primary font-poppins">FastLanche</span>
+                <span className="text-2xl font-bold text-primary font-poppins">FastLanche Faculdade</span>
               </Link>
             </div>
             
