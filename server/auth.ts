@@ -1,24 +1,28 @@
 import session from 'express-session';
 import { Express, Request, Response, NextFunction } from 'express';
-import createMemoryStore from 'memorystore';
+import connectPgSimple from 'connect-pg-simple';
+import { pool } from './db';
 
-const MemoryStore = createMemoryStore(session);
+const PgStore = connectPgSimple(session);
 
 export function setupAuth(app: Express) {
-  // Configuração da sessão
+  // Configuração da sessão com PostgreSQL
   app.use(
     session({
+      store: new PgStore({
+        pool,
+        tableName: 'session',
+        createTableIfMissing: true
+      }),
       secret: 'fastlanche-secret-key',
       resave: false,
       saveUninitialized: false,
       cookie: { 
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Em desenvolvimento, defina como false
         maxAge: 24 * 60 * 60 * 1000, // 24 horas
-        httpOnly: true
-      },
-      store: new MemoryStore({
-        checkPeriod: 86400000 // limpa sessões expiradas a cada 24h
-      })
+        httpOnly: true,
+        sameSite: 'lax'
+      }
     })
   );
 
