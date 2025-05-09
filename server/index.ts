@@ -2,8 +2,16 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
+import cors from 'cors';
 
 const app = express();
+
+// Configurar CORS antes de qualquer middleware
+app.use(cors({
+  origin: true, // Permitir origens com credenciais
+  credentials: true, // Permitir envio de cookies
+}));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
