@@ -30,9 +30,7 @@ const registerSchema = z.object({
   phone: z
     .string()
     .optional(),
-  address: z
-    .string()
-    .optional(),
+
   terms: z
     .boolean()
     .refine(val => val === true, {
@@ -58,7 +56,7 @@ const RegisterForm = ({ onSuccess }: RegisterFormProps) => {
       password: "",
       confirmPassword: "",
       phone: "",
-      address: "",
+
       terms: false,
     },
   });
@@ -72,7 +70,6 @@ const RegisterForm = ({ onSuccess }: RegisterFormProps) => {
         email: data.email,
         password: data.password,
         phone: data.phone,
-        address: data.address,
       });
       
       toast({
@@ -188,22 +185,7 @@ const RegisterForm = ({ onSuccess }: RegisterFormProps) => {
           )}
         />
         
-        <FormField
-          control={form.control}
-          name="address"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Endereço</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="Rua, número, bairro, cidade, etc."
-                  {...field}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+
         
         <FormField
           control={form.control}

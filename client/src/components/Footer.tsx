@@ -13,29 +13,7 @@ const Footer = () => {
             <p className="text-neutral-300 mb-4">
               Lanches deliciosos e atendimento de qualidade para os estudantes e funcionários da faculdade!
             </p>
-            <div className="flex space-x-4">
-              <a 
-                href="#" 
-                className="text-neutral-300 hover:text-white transition-colors"
-                aria-label="Instagram"
-              >
-                <i className="ri-instagram-line text-xl"></i>
-              </a>
-              <a 
-                href="#" 
-                className="text-neutral-300 hover:text-white transition-colors"
-                aria-label="Facebook"
-              >
-                <i className="ri-facebook-circle-line text-xl"></i>
-              </a>
-              <a 
-                href="#" 
-                className="text-neutral-300 hover:text-white transition-colors"
-                aria-label="WhatsApp"
-              >
-                <i className="ri-whatsapp-line text-xl"></i>
-              </a>
-            </div>
+
           </div>
           
           <div>
@@ -97,16 +75,8 @@ const Footer = () => {
               <li className="flex items-start space-x-2">
                 <i className="ri-map-pin-line text-neutral-300 mt-1"></i>
                 <span className="text-neutral-300">
-                  Campus Universitário - Bloco C, Próximo à Biblioteca
+                  Universidade Anhanguera de Osasco - Próximo ao Auditório
                 </span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <i className="ri-phone-line text-neutral-300"></i>
-                <span className="text-neutral-300">(11) 98765-4321</span>
-              </li>
-              <li className="flex items-center space-x-2">
-                <i className="ri-mail-line text-neutral-300"></i>
-                <span className="text-neutral-300">lanchonete@faculdade.edu.br</span>
               </li>
             </ul>
           </div>
