@@ -98,6 +98,9 @@ const Navbar = () => {
                 <Link href="/admin" className="hover:text-primary transition-colors">
                   Dashboard
                 </Link>
+                <Link href="/admin/categorias" className="hover:text-primary transition-colors">
+                  Categorias
+                </Link>
                 <Link href="/admin/produtos" className="hover:text-primary transition-colors">
                   Produtos
                 </Link>
@@ -197,6 +200,9 @@ const Navbar = () => {
                   <>
                     <Link href="/admin" className="hover:text-primary transition-colors py-2">
                       Dashboard
+                    </Link>
+                    <Link href="/admin/categorias" className="hover:text-primary transition-colors py-2">
+                      Categorias
                     </Link>
                     <Link href="/admin/produtos" className="hover:text-primary transition-colors py-2">
                       Produtos

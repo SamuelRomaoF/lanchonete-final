@@ -11,6 +11,7 @@ import ProductsList from "@/pages/ProductsList";
 import OrderHistory from "@/pages/OrderHistory";
 import Dashboard from "@/pages/admin/Dashboard";
 import ProductManagement from "@/pages/admin/ProductManagement";
+import CategoryManagement from "@/pages/admin/CategoryManagement";
 import OrdersList from "@/pages/admin/OrdersList";
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -27,6 +28,7 @@ function Router() {
       {/* Páginas de admin */}
       <Route path="/admin" component={Dashboard} />
       <Route path="/admin/produtos" component={ProductManagement} />
+      <Route path="/admin/categorias" component={CategoryManagement} />
       <Route path="/admin/pedidos" component={OrdersList} />
       
       {/* Fallback para 404 */}
