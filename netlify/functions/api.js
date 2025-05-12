@@ -26,6 +26,44 @@ function extractAndValidateId(path) {
   return result;
 }
 
+// Função para forçar a reescrita de um bin usando criação de nova versão
+async function forceRewriteBin(binId, data) {
+  try {
+    console.log(`Forçando a reescrita completa do bin ${binId} com ${data.length} itens`);
+    
+    // Primeiro, vamos tentar a atualização normal
+    let success = await updateBin(binId, data);
+    
+    if (!success) {
+      console.log('Falha na atualização normal, tentando forçar com método alternativo...');
+      
+      // Tentativa alternativa: criar uma nova versão do bin
+      const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_API_KEY,
+          'X-Bin-Versioning': 'true'
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        console.error('Falha também no segundo método de atualização:', await response.text());
+        return false;
+      }
+      
+      console.log('Reescrita forçada bem-sucedida!');
+      return true;
+    }
+    
+    return success;
+  } catch (error) {
+    console.error('Erro ao forçar reescrita do bin:', error);
+    return false;
+  }
+}
+
 // Funções para interagir com JSONBin.io
 async function fetchFromBin(binId) {
   try {
@@ -51,6 +89,10 @@ async function fetchFromBin(binId) {
 
 async function updateBin(binId, data) {
   try {
+    console.log(`Tentando atualizar bin ${binId} com ${data.length} itens`);
+    console.log('Primeiro item da coleção (amostra):', data.length > 0 ? data[0] : 'Sem itens');
+    console.log('Dados enviados para updateBin:', JSON.stringify(data).substring(0, 200) + '...');
+    
     const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
       method: 'PUT',
       headers: {
@@ -61,10 +103,13 @@ async function updateBin(binId, data) {
     });
     
     if (!response.ok) {
-      console.error('Erro ao atualizar dados no JSONBin:', await response.text());
+      const errorText = await response.text();
+      console.error(`Erro ao atualizar dados no JSONBin (status ${response.status}):`, errorText);
       return false;
     }
     
+    const result = await response.json();
+    console.log('Resposta do JSONBin após atualização:', result.metadata);
     return true;
   } catch (error) {
     console.error('Erro ao atualizar dados no JSONBin:', error);
@@ -358,9 +403,20 @@ exports.handler = async (event, context) => {
           ...data
         };
         
-        // Adicionar à lista e atualizar no JSONBin
+        // Adicionar à lista e atualizar no JSONBin usando forceRewriteBin
         categories.push(newCategory);
-        await updateBin(BINS.categories, categories);
+        const success = await forceRewriteBin(BINS.categories, categories);
+        
+        if (!success) {
+          console.error('Falha ao criar categoria no bin');
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao criar categoria' })
+          };
+        }
+        
+        console.log('Categoria criada com sucesso, ID:', newId);
         
         return {
           statusCode: 201,
@@ -400,21 +456,36 @@ exports.handler = async (event, context) => {
         
         // Adicionar à lista de produtos e atualizar no JSONBin
         products.push(newProduct);
-        await updateBin(BINS.products, products);
+        const success = await forceRewriteBin(BINS.products, products);
+        
+        if (!success) {
+          console.error('Falha ao criar produto no bin');
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao criar produto' })
+          };
+        }
+        
+        console.log('Produto adicionado à lista principal, ID:', newId);
         
         // Se o produto está marcado como featured, adicionar à lista de destaque
         if (newProduct.isFeatured) {
           const featuredProducts = await fetchFromBin(BINS.featured);
           featuredProducts.push(newProduct);
-          await updateBin(BINS.featured, featuredProducts);
+          await forceRewriteBin(BINS.featured, featuredProducts);
+          console.log('Produto adicionado aos destaques');
         }
         
         // Se o produto está marcado como promotion, adicionar à lista de promoções
         if (newProduct.isPromotion) {
           const promotionProducts = await fetchFromBin(BINS.promotions);
           promotionProducts.push(newProduct);
-          await updateBin(BINS.promotions, promotionProducts);
+          await forceRewriteBin(BINS.promotions, promotionProducts);
+          console.log('Produto adicionado às promoções');
         }
+        
+        console.log('Produto criado com sucesso, ID:', newId);
         
         return {
           statusCode: 201,
@@ -741,8 +812,8 @@ exports.handler = async (event, context) => {
         
         categories[categoryIndex] = updatedCategory;
         
-        // Salvar as alterações
-        const success = await updateBin(BINS.categories, categories);
+        // Salvar as alterações usando forceRewriteBin para garantir a atualização
+        const success = await forceRewriteBin(BINS.categories, categories);
         
         if (!success) {
           console.error('Falha ao atualizar categoria no bin');
@@ -806,20 +877,32 @@ exports.handler = async (event, context) => {
           if (hasProductWithIdZero) {
             console.log('Removendo produto com ID 0');
             const filteredProducts = products.filter(p => p.id !== 0);
-            await updateBin(BINS.products, filteredProducts);
+            console.log(`Produtos após filtrar ID 0: ${filteredProducts.length} (antes: ${products.length})`);
+            
+            // Usar nossa nova função de forceRewriteBin
+            const success = await forceRewriteBin(BINS.products, filteredProducts);
+            console.log('Atualização do bin bem-sucedida?', success);
+            
+            if (!success) {
+              return {
+                statusCode: 500,
+                headers,
+                body: JSON.stringify({ error: 'Falha ao excluir produto com ID 0' })
+              };
+            }
             
             // Remover das listas especiais se necessário
             const productWithIdZero = products.find(p => p.id === 0);
             if (productWithIdZero && productWithIdZero.isFeatured) {
               const featuredProducts = await fetchFromBin(BINS.featured);
               const filteredFeatured = featuredProducts.filter(p => p.id !== 0);
-              await updateBin(BINS.featured, filteredFeatured);
+              await forceRewriteBin(BINS.featured, filteredFeatured);
             }
             
             if (productWithIdZero && productWithIdZero.isPromotion) {
               const promotionProducts = await fetchFromBin(BINS.promotions);
               const filteredPromotions = promotionProducts.filter(p => p.id !== 0);
-              await updateBin(BINS.promotions, filteredPromotions);
+              await forceRewriteBin(BINS.promotions, filteredPromotions);
             }
           }
           
@@ -833,8 +916,14 @@ exports.handler = async (event, context) => {
 
         // Código normal para outros IDs
         // Buscar produtos existentes
-        const products = await fetchFromBin(BINS.products);
+        let products = await fetchFromBin(BINS.products);
         console.log('Produtos existentes:', products.length);
+        
+        // Verificar se products é um array válido
+        if (!Array.isArray(products)) {
+          console.error('Dados de produtos não é um array:', products);
+          products = [];
+        }
         
         // Listar IDs de produtos para debug
         console.log('IDs de produtos existentes:', products.map(p => p.id));
@@ -860,10 +949,18 @@ exports.handler = async (event, context) => {
         
         // Filtrar o produto a ser removido com comparação estrita
         const filteredProducts = products.filter(p => p.id !== productId);
-        console.log('Quantidade de produtos após a remoção:', filteredProducts.length);
+        console.log(`Quantidade de produtos após a remoção: ${filteredProducts.length} (antes: ${products.length})`);
         
-        // Salvar as alterações
-        const success = await updateBin(BINS.products, filteredProducts);
+        if (filteredProducts.length === products.length) {
+          console.error('Filtragem não removeu o produto! Verificando o problema...');
+          console.log('Produto a excluir ID:', productId, 'tipo:', typeof productId);
+          products.forEach(p => {
+            console.log(`Produto ID: ${p.id}, tipo: ${typeof p.id}, comparação: ${p.id === productId}`);
+          });
+        }
+        
+        // Salvar as alterações - usar forceRewriteBin para garantir a atualização
+        const success = await forceRewriteBin(BINS.products, filteredProducts);
         
         if (!success) {
           console.error('Falha ao atualizar bin após excluir produto');
@@ -880,18 +977,47 @@ exports.handler = async (event, context) => {
         if (productToDelete.isFeatured) {
           const featuredProducts = await fetchFromBin(BINS.featured);
           const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
-          await updateBin(BINS.featured, filteredFeatured);
+          await forceRewriteBin(BINS.featured, filteredFeatured);
           console.log('Produto removido da lista de destacados');
         }
         
         if (productToDelete.isPromotion) {
           const promotionProducts = await fetchFromBin(BINS.promotions);
           const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
-          await updateBin(BINS.promotions, filteredPromotions);
+          await forceRewriteBin(BINS.promotions, filteredPromotions);
           console.log('Produto removido da lista de promoções');
         }
         
         console.log('Produto excluído com sucesso, ID:', productId);
+        
+        // Verificar novamente se o produto foi realmente excluído
+        const productsAfter = await fetchFromBin(BINS.products);
+        const stillExists = productsAfter.some(p => p.id === productId);
+        
+        if (stillExists) {
+          console.error('ERRO: Produto ainda existe após a exclusão!');
+          
+          // Última tentativa desesperada - forçar com formato diferente
+          console.log('Tentativa final - converteremos IDs para strings para garantir compatibilidade de tipos');
+          
+          const productsWithStringIds = productsAfter.map(p => ({
+            ...p,
+            id: String(p.id) // Converter todos os IDs para string para garantir consistência
+          }));
+          
+          const finalFilteredProducts = productsWithStringIds.filter(p => String(p.id) !== String(productId));
+          
+          if (finalFilteredProducts.length < productsWithStringIds.length) {
+            console.log('Filtro com strings removeu o produto. Tentando salvar...');
+            await forceRewriteBin(BINS.products, finalFilteredProducts);
+          }
+          
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao excluir o produto permanentemente' })
+          };
+        }
         
         return {
           statusCode: 200,
@@ -929,8 +1055,15 @@ exports.handler = async (event, context) => {
         console.log('ID da categoria a excluir:', categoryId, 'tipo:', typeof categoryId);
         
         // Buscar categorias existentes
-        const categories = await fetchFromBin(BINS.categories);
+        let categories = await fetchFromBin(BINS.categories);
         console.log('Categorias existentes:', categories.length);
+        
+        // Verificar se categories é um array válido
+        if (!Array.isArray(categories)) {
+          console.error('Dados de categorias não é um array:', categories);
+          categories = [];
+        }
+        
         console.log('IDs de categorias existentes:', categories.map(c => c.id));
         
         // Verificar se a categoria existe antes de remover usando comparação estrita
@@ -952,10 +1085,18 @@ exports.handler = async (event, context) => {
         
         // Filtrar a categoria a ser removida usando comparação estrita
         const filteredCategories = categories.filter(c => c.id !== categoryId);
-        console.log('Categorias após a remoção:', filteredCategories.length);
+        console.log(`Categorias após a remoção: ${filteredCategories.length} (antes: ${categories.length})`);
+        
+        if (filteredCategories.length === categories.length) {
+          console.error('Filtragem não removeu a categoria! Verificando o problema...');
+          console.log('Categoria a excluir ID:', categoryId, 'tipo:', typeof categoryId);
+          categories.forEach(c => {
+            console.log(`Categoria ID: ${c.id}, tipo: ${typeof c.id}, comparação: ${c.id === categoryId}`);
+          });
+        }
         
         // Salvar as alterações
-        const success = await updateBin(BINS.categories, filteredCategories);
+        const success = await forceRewriteBin(BINS.categories, filteredCategories);
         
         if (!success) {
           console.error('Falha ao atualizar bin após excluir categoria');
@@ -967,6 +1108,35 @@ exports.handler = async (event, context) => {
         }
         
         console.log('Categoria excluída com sucesso, ID:', categoryId);
+        
+        // Verificar novamente se a categoria foi realmente excluída
+        const categoriesAfter = await fetchFromBin(BINS.categories);
+        const stillExists = categoriesAfter.some(c => c.id === categoryId);
+        
+        if (stillExists) {
+          console.error('ERRO: Categoria ainda existe após a exclusão!');
+          
+          // Última tentativa desesperada - forçar com formato diferente
+          console.log('Tentativa final - converteremos IDs para strings para garantir compatibilidade de tipos');
+          
+          const categoriesWithStringIds = categoriesAfter.map(c => ({
+            ...c,
+            id: String(c.id) // Converter todos os IDs para string para garantir consistência
+          }));
+          
+          const finalFilteredCategories = categoriesWithStringIds.filter(c => String(c.id) !== String(categoryId));
+          
+          if (finalFilteredCategories.length < categoriesWithStringIds.length) {
+            console.log('Filtro com strings removeu a categoria. Tentando salvar...');
+            await forceRewriteBin(BINS.categories, finalFilteredCategories);
+          }
+          
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao excluir a categoria permanentemente' })
+          };
+        }
         
         return {
           statusCode: 200,
@@ -1130,7 +1300,7 @@ exports.handler = async (event, context) => {
         products[productIndex] = updatedProduct;
         
         // Salvar as alterações na lista de produtos
-        const success = await updateBin(BINS.products, products);
+        const success = await forceRewriteBin(BINS.products, products);
         
         if (!success) {
           console.error('Falha ao atualizar produto no bin');
@@ -1153,12 +1323,12 @@ exports.handler = async (event, context) => {
             // Adicionar aos destaques
             console.log('Adicionando produto aos destaques');
             featuredProducts.push(updatedProduct);
-            await updateBin(BINS.featured, featuredProducts);
+            await forceRewriteBin(BINS.featured, featuredProducts);
           } else {
             // Remover dos destaques
             console.log('Removendo produto dos destaques');
             const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
-            await updateBin(BINS.featured, filteredFeatured);
+            await forceRewriteBin(BINS.featured, filteredFeatured);
           }
         }
         
@@ -1172,12 +1342,12 @@ exports.handler = async (event, context) => {
             // Adicionar às promoções
             console.log('Adicionando produto às promoções');
             promotionProducts.push(updatedProduct);
-            await updateBin(BINS.promotions, promotionProducts);
+            await forceRewriteBin(BINS.promotions, promotionProducts);
           } else {
             // Remover das promoções
             console.log('Removendo produto das promoções');
             const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
-            await updateBin(BINS.promotions, filteredPromotions);
+            await forceRewriteBin(BINS.promotions, filteredPromotions);
           }
         }
         
