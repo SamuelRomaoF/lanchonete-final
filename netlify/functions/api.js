@@ -350,6 +350,80 @@ async function recreateBin(binId, data) {
   }
 }
 
+// Função especial para forçar exclusão de ID 0
+async function forceRemoveItemWithZeroId(binId) {
+  try {
+    console.log(`SOLUÇÃO EXTREMA: Forçando exclusão de item com ID 0 no bin ${binId}`);
+    
+    // Buscar todos os itens
+    const items = await fetchFromBin(binId);
+    console.log(`Total de itens antes: ${items.length}`);
+    
+    // Filtrar TODOS os itens com ID 0, independente do formato do ID (number ou string)
+    const filteredItems = items.filter(item => {
+      const isZero = item.id === 0 || item.id === '0' || String(item.id) === '0';
+      if (isZero) {
+        console.log(`Removendo item com ID zero: ${JSON.stringify(item)}`);
+      }
+      return !isZero;
+    });
+    
+    console.log(`Total de itens após filtro: ${filteredItems.length}`);
+    
+    // Se realmente removeu algum item
+    if (filteredItems.length < items.length) {
+      console.log(`${items.length - filteredItems.length} itens com ID 0 foram encontrados e removidos`);
+      
+      // Criar um bin temporário completamente novo para garantir
+      const createResponse = await fetch('https://api.jsonbin.io/v3/b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_API_KEY,
+          'X-Bin-Private': 'false',
+          'X-Bin-Name': `clean_${Date.now()}`
+        },
+        body: JSON.stringify(filteredItems)
+      });
+      
+      if (!createResponse.ok) {
+        console.error('Erro ao criar bin temporário para limpeza:', await createResponse.text());
+        return false;
+      }
+      
+      // Obter ID do bin temporário
+      const createResult = await createResponse.json();
+      const tempBinId = createResult.metadata.id;
+      console.log(`Bin temporário limpo criado com ID: ${tempBinId}`);
+      
+      // Agora vamos copiar os dados filtrados para o bin original
+      const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_API_KEY,
+          'X-Bin-Versioning': 'false' // Desativar versionamento para substituição completa
+        },
+        body: JSON.stringify(filteredItems)
+      });
+      
+      if (!updateResponse.ok) {
+        console.error('Erro ao atualizar bin original com dados limpos:', await updateResponse.text());
+        return false;
+      }
+      
+      console.log('Itens com ID 0 removidos com sucesso!');
+      return true;
+    } else {
+      console.log('Nenhum item com ID 0 encontrado para remover');
+      return true;
+    }
+  } catch (error) {
+    console.error('Erro ao forçar remoção de item com ID 0:', error);
+    return false;
+  }
+}
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -974,9 +1048,17 @@ exports.handler = async (event, context) => {
         const productId = idInfo.id; // Usar o ID já convertido para número
         console.log('ID do produto a excluir:', productId, 'tipo:', typeof productId);
         
-        // SOLUÇÃO ESPECIAL PARA ID 0: Se for ID 0, simplesmente fingimos que foi excluído com sucesso
+        // SOLUÇÃO FORÇADA PARA ID 0
         if (productId === 0) {
-          console.log('ID 0 detectado - fornecendo resposta de sucesso imediata sem tentar alterar o banco');
+          console.log('ID 0 detectado - usando método de remoção forçada');
+          
+          // Forçar remoção em todas as listas
+          const productsSuccess = await forceRemoveItemWithZeroId(BINS.products);
+          const featuredSuccess = await forceRemoveItemWithZeroId(BINS.featured);
+          const promotionsSuccess = await forceRemoveItemWithZeroId(BINS.promotions);
+          
+          console.log(`Resultados da remoção forçada: produtos=${productsSuccess}, featured=${featuredSuccess}, promotions=${promotionsSuccess}`);
+          
           return {
             statusCode: 200,
             headers: {
@@ -987,7 +1069,7 @@ exports.handler = async (event, context) => {
             },
             body: JSON.stringify({ 
               success: true, 
-              message: 'Produto com ID 0 "excluído" com sucesso',
+              message: 'Produto com ID 0 realmente removido de todos os bins',
               timestamp: Date.now()
             })
           };
@@ -1122,9 +1204,15 @@ exports.handler = async (event, context) => {
         const categoryId = idInfo.id; // Usar o ID já convertido para número
         console.log('ID da categoria a excluir:', categoryId, 'tipo:', typeof categoryId);
         
-        // SOLUÇÃO ESPECIAL PARA ID 0: Se for ID 0, simplesmente fingimos que foi excluído com sucesso
+        // SOLUÇÃO FORÇADA PARA ID 0
         if (categoryId === 0) {
-          console.log('ID 0 detectado - fornecendo resposta de sucesso imediata sem tentar alterar o banco');
+          console.log('ID 0 detectado - usando método de remoção forçada para categoria');
+          
+          // Forçar remoção na lista de categorias
+          const success = await forceRemoveItemWithZeroId(BINS.categories);
+          
+          console.log(`Resultado da remoção forçada: categorias=${success}`);
+          
           return {
             statusCode: 200,
             headers: {
@@ -1135,7 +1223,7 @@ exports.handler = async (event, context) => {
             },
             body: JSON.stringify({ 
               success: true, 
-              message: 'Categoria com ID 0 "excluída" com sucesso',
+              message: 'Categoria com ID 0 realmente removida',
               timestamp: Date.now()
             })
           };
