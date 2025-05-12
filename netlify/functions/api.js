@@ -101,6 +101,13 @@ async function initializeUsersBin() {
   }
 }
 
+// Gerenciamento de sessões simplificado
+const activeSessions = new Map();
+
+function generateToken() {
+  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
+
 // Inicializar o bin de usuários quando a função é carregada
 initializeUsersBin();
 
@@ -116,7 +123,7 @@ exports.handler = async (event, context) => {
   // Log the request for debugging
   console.log('Request path:', event.path);
   console.log('Request method:', event.httpMethod);
-
+  
   try {
     // Get the path without the /.netlify/functions/api prefix
     const path = event.path.replace('/.netlify/functions/api', '');
@@ -127,6 +134,34 @@ exports.handler = async (event, context) => {
         statusCode: 200,
         headers,
         body: JSON.stringify({ message: 'CORS preflight successful' })
+      };
+    }
+    
+    // Extrair token de autenticação, se presente
+    let authToken = null;
+    if (event.headers && event.headers.authorization) {
+      const parts = event.headers.authorization.split(' ');
+      if (parts.length === 2 && parts[0] === 'Bearer') {
+        authToken = parts[1];
+      }
+    }
+    
+    // GET - Verificar usuário atual
+    if ((path === '/auth/me' || path === '/api/auth/me') && event.httpMethod === 'GET') {
+      // Se não há token, usuário não está autenticado
+      if (!authToken || !activeSessions.has(authToken)) {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ error: 'Não autenticado' })
+        };
+      }
+      
+      // Retorna os dados do usuário da sessão
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ user: activeSessions.get(authToken) })
       };
     }
     
@@ -143,20 +178,27 @@ exports.handler = async (event, context) => {
           };
         }
         
+        console.log(`Tentativa de login para: ${email}`);
+        
         // Buscar usuário pelo email
         const user = await getUserByEmail(email);
         
         if (!user) {
+          console.log(`Usuário não encontrado: ${email}`);
           return {
             statusCode: 401,
             headers,
             body: JSON.stringify({ error: 'Email ou senha inválidos' })
           };
         }
+        
+        console.log(`Usuário encontrado: ${user.email}, tipo: ${user.type}`);
+        console.log(`Senha fornecida: ${password}, senha armazenada: ${user.password}`);
         
         // Para simplificar, estamos fazendo uma comparação direta aqui
         // Em um ambiente real, você usaria bcrypt ou similar
         if (user.password !== password) {
+          console.log('Senha incorreta');
           return {
             statusCode: 401,
             headers,
@@ -164,13 +206,23 @@ exports.handler = async (event, context) => {
           };
         }
         
-        // Remover a senha antes de retornar
+        // Remover a senha antes de armazenar na sessão
         const { password: _, ...userWithoutPassword } = user;
         
+        // Gerar token de sessão
+        const token = generateToken();
+        activeSessions.set(token, userWithoutPassword);
+        
+        console.log(`Login bem-sucedido para: ${user.email}, tipo: ${user.type}`);
+        
+        // Retornar usuário e token
         return {
           statusCode: 200,
           headers,
-          body: JSON.stringify({ user: userWithoutPassword })
+          body: JSON.stringify({ 
+            user: userWithoutPassword,
+            token
+          })
         };
       } catch (err) {
         console.error('Erro ao fazer login:', err);
@@ -327,6 +379,15 @@ exports.handler = async (event, context) => {
         statusCode: 200,
         headers,
         body: JSON.stringify({ success: true })
+      };
+    }
+
+    // Rota para o sistema de fila
+    if ((path === '/queue' || path === '/api/queue') && event.httpMethod === 'GET') {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ tickets: [] })
       };
     }
 
