@@ -1,4 +1,10 @@
 // Simple serverless API for Netlify Functions
+// Dados em memória (serão perdidos após reset da função)
+let categories = [];
+let products = [];
+let featuredProducts = [];
+let promotionProducts = [];
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -24,55 +30,104 @@ exports.handler = async (event, context) => {
         body: JSON.stringify({ message: 'CORS preflight successful' })
       };
     }
+    
+    // POST - Criar nova categoria
+    if ((path === '/categories' || path === '/api/categories') && event.httpMethod === 'POST') {
+      try {
+        const data = JSON.parse(event.body);
+        const newCategory = {
+          id: Date.now(), // ID temporário baseado em timestamp
+          ...data
+        };
+        
+        categories.push(newCategory);
+        
+        return {
+          statusCode: 201,
+          headers,
+          body: JSON.stringify(newCategory)
+        };
+      } catch (err) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Dados inválidos', details: err.message })
+        };
+      }
+    }
+    
+    // POST - Criar novo produto
+    if ((path === '/products' || path === '/api/products') && event.httpMethod === 'POST') {
+      try {
+        const data = JSON.parse(event.body);
+        const newProduct = {
+          id: Date.now(),
+          ...data
+        };
+        
+        products.push(newProduct);
+        
+        // Se o produto está marcado como featured, adicionar à lista de destaque
+        if (newProduct.isFeatured) {
+          featuredProducts.push(newProduct);
+        }
+        
+        // Se o produto está marcado como promotion, adicionar à lista de promoções
+        if (newProduct.isPromotion) {
+          promotionProducts.push(newProduct);
+        }
+        
+        return {
+          statusCode: 201,
+          headers,
+          body: JSON.stringify(newProduct)
+        };
+      } catch (err) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Dados inválidos', details: err.message })
+        };
+      }
+    }
 
-    // Route handling based on path and method
-    if (path === '/categories' || path === '/api/categories') {
+    // GET - Obter categorias
+    if ((path === '/categories' || path === '/api/categories') && event.httpMethod === 'GET') {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify([
-          { id: 1, name: "Hambúrgueres", description: "Deliciosos hambúrgueres artesanais", imageUrl: "https://images.unsplash.com/photo-1586190848861-99aa4a171e90" },
-          { id: 2, name: "Pizzas", description: "Pizzas com bordas recheadas", imageUrl: "https://images.unsplash.com/photo-1590947132387-155cc02f3212" },
-          { id: 3, name: "Porções", description: "Porções para compartilhar", imageUrl: "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d" },
-          { id: 4, name: "Bebidas", description: "Refrigerantes e sucos", imageUrl: "https://images.unsplash.com/photo-1613564834361-9436948817d1" }
-        ])
+        body: JSON.stringify(categories)
       };
     }
 
-    if (path === '/products' || path === '/api/products') {
+    // GET - Obter produtos
+    if ((path === '/products' || path === '/api/products') && event.httpMethod === 'GET') {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify([
-          { id: 1, name: "X-Burguer", description: "Hambúrguer com queijo", price: 15.90, categoryId: 1, imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd", available: true },
-          { id: 2, name: "X-Salada", description: "Hambúrguer com queijo e salada", price: 18.90, categoryId: 1, imageUrl: "https://images.unsplash.com/photo-1550547660-d9450f859349", available: true },
-          { id: 3, name: "Pizza Margherita", description: "Molho de tomate, muçarela e manjericão", price: 35.90, categoryId: 2, imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3", available: true }
-        ])
+        body: JSON.stringify(products)
       };
     }
 
-    if (path === '/products/featured' || path === '/api/products/featured') {
+    // GET - Obter produtos em destaque
+    if ((path === '/products/featured' || path === '/api/products/featured') && event.httpMethod === 'GET') {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify([
-          { id: 1, name: "X-Burguer", description: "Hambúrguer com queijo", price: 15.90, categoryId: 1, imageUrl: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd", isFeatured: true, available: true },
-          { id: 2, name: "X-Salada", description: "Hambúrguer com queijo e salada", price: 18.90, categoryId: 1, imageUrl: "https://images.unsplash.com/photo-1550547660-d9450f859349", isFeatured: true, available: true }
-        ])
+        body: JSON.stringify(featuredProducts)
       };
     }
 
-    if (path === '/products/promotions' || path === '/api/products/promotions') {
+    // GET - Obter produtos em promoção
+    if ((path === '/products/promotions' || path === '/api/products/promotions') && event.httpMethod === 'GET') {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify([
-          { id: 3, name: "Pizza Margherita", description: "Molho de tomate, muçarela e manjericão", price: 35.90, oldPrice: 42.90, categoryId: 2, imageUrl: "https://images.unsplash.com/photo-1604382354936-07c5d9983bd3", isPromotion: true, available: true }
-        ])
+        body: JSON.stringify(promotionProducts)
       };
     }
 
-    if (path === '/queue/check-reset' || path === '/api/queue/check-reset') {
+    if ((path === '/queue/check-reset' || path === '/api/queue/check-reset') && event.httpMethod === 'GET') {
       return {
         statusCode: 200,
         headers,
@@ -80,7 +135,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (path === '/queue/sync' || path === '/api/queue/sync') {
+    if ((path === '/queue/sync' || path === '/api/queue/sync') && 
+        (event.httpMethod === 'POST' || event.httpMethod === 'GET')) {
       return {
         statusCode: 200,
         headers,
