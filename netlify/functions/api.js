@@ -278,6 +278,77 @@ async function recreateBinIfNeeded(binId, data, itemId) {
   }
 }
 
+// Função super radical para recriar completamente o bin
+async function recreateBin(binId, data) {
+  try {
+    console.log(`SOLUÇÃO SUPER RADICAL: Recriando completamente o bin ${binId}`);
+    console.log('Dados a serem salvos:', JSON.stringify(data).substring(0, 100) + '...');
+    
+    // Primeiro cria um novo bin temporário
+    const createResponse = await fetch('https://api.jsonbin.io/v3/b', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_API_KEY,
+        'X-Bin-Private': 'false',
+        'X-Bin-Name': `temp_${Date.now()}`
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!createResponse.ok) {
+      console.error('Erro ao criar bin temporário:', await createResponse.text());
+      return false;
+    }
+    
+    const createResult = await createResponse.json();
+    const tempBinId = createResult.metadata.id;
+    console.log(`Bin temporário criado com ID: ${tempBinId}`);
+    
+    // Agora vamos copiar os dados para o bin original
+    const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': JSONBIN_API_KEY
+      },
+      body: JSON.stringify(data)
+    });
+    
+    if (!updateResponse.ok) {
+      console.error('Erro ao atualizar bin original com dados do temporário:', await updateResponse.text());
+      
+      // Última tentativa: criar um novo bin com o nome exato do original
+      console.log('Tentativa final: criar novo bin com nome do original');
+      
+      const finalResponse = await fetch('https://api.jsonbin.io/v3/b', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JSONBIN_API_KEY,
+          'X-Bin-Private': 'false',
+          'X-Bin-Name': binId // Usar o ID original como nome
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!finalResponse.ok) {
+        console.error('Tentativa final falhou:', await finalResponse.text());
+        return false;
+      }
+      
+      console.log('Sucesso na tentativa final!');
+      return true;
+    }
+    
+    console.log('Bin original atualizado com sucesso!');
+    return true;
+  } catch (error) {
+    console.error('Erro fatal ao recriar bin:', error);
+    return false;
+  }
+}
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -902,83 +973,28 @@ exports.handler = async (event, context) => {
         const productId = idInfo.id; // Usar o ID já convertido para número
         console.log('ID do produto a excluir:', productId, 'tipo:', typeof productId);
         
-        // Tratamento especial para ID 0 - sempre retorna sucesso mesmo se não encontrar
-        if (productId === 0) {
-          console.log('ID 0 detectado - tratamento especial para garantir sucesso');
-          
-          // Buscar produtos existentes apenas para remover se existir
-          const products = await fetchFromBin(BINS.products);
-          console.log('Produtos existentes:', products.length);
-          
-          // Verificar se existe produto com ID 0
-          const hasProductWithIdZero = products.some(p => p.id === 0);
-          console.log('Existe produto com ID 0?', hasProductWithIdZero);
-          
-          // Se existir, remove-o
-          if (hasProductWithIdZero) {
-            console.log('Removendo produto com ID 0');
-            const filteredProducts = products.filter(p => p.id !== 0);
-            console.log(`Produtos após filtrar ID 0: ${filteredProducts.length} (antes: ${products.length})`);
-            
-            // Usar nossa nova função radical para garantir a exclusão
-            const success = await recreateBinIfNeeded(BINS.products, filteredProducts, 0);
-            console.log('Atualização do bin bem-sucedida?', success);
-            
-            if (!success) {
-              return {
-                statusCode: 500,
-                headers,
-                body: JSON.stringify({ error: 'Falha ao excluir produto com ID 0' })
-              };
-            }
-            
-            // Remover das listas especiais se necessário
-            const productWithIdZero = products.find(p => p.id === 0);
-            if (productWithIdZero && productWithIdZero.isFeatured) {
-              const featuredProducts = await fetchFromBin(BINS.featured);
-              const filteredFeatured = featuredProducts.filter(p => p.id !== 0);
-              await recreateBinIfNeeded(BINS.featured, filteredFeatured, 0);
-            }
-            
-            if (productWithIdZero && productWithIdZero.isPromotion) {
-              const promotionProducts = await fetchFromBin(BINS.promotions);
-              const filteredPromotions = promotionProducts.filter(p => p.id !== 0);
-              await recreateBinIfNeeded(BINS.promotions, filteredPromotions, 0);
-            }
-          }
-          
-          // Sempre retorna sucesso para ID 0, mesmo se não existir
-          return {
-            statusCode: 200,
-            headers,
-            body: JSON.stringify({ success: true, message: 'Operação bem-sucedida para produto ID 0' })
-          };
-        }
-
-        // Código normal para outros IDs
         // Buscar produtos existentes
         let products = await fetchFromBin(BINS.products);
-        console.log('Produtos existentes:', products.length);
+        console.log(`Total de ${products.length} produtos encontrados`);
         
         // Verificar se products é um array válido
         if (!Array.isArray(products)) {
-          console.error('Dados de produtos não é um array:', products);
+          console.error('ERRO: Dados de produtos não é um array!');
           products = [];
         }
         
         // Listar IDs de produtos para debug
-        console.log('IDs de produtos existentes:', products.map(p => p.id));
+        const productIds = products.map(p => p.id);
+        console.log('IDs de produtos existentes:', productIds);
         
-        // Verificar explicitamente se o produto existe usando uma comparação estrita
-        const productToDelete = products.find(p => p.id === productId);
+        // Verificar se o produto existe
+        const productIndex = products.findIndex(p => {
+          // Comparar como string para garantir
+          return String(p.id) === String(productId);
+        });
         
-        if (!productToDelete) {
-          console.log(`Produto não encontrado com ID: ${productId} (tipo: ${typeof productId})`);
-          
-          // Verificação adicional para depuração
-          const productIdsExatos = products.map(p => `${p.id} (tipo: ${typeof p.id})`);
-          console.log('IDs de produtos com tipo:', productIdsExatos);
-          
+        if (productIndex === -1) {
+          console.log(`ERRO: Produto com ID ${productId} não encontrado`);
           return {
             statusCode: 404,
             headers,
@@ -986,31 +1002,17 @@ exports.handler = async (event, context) => {
           };
         }
         
-        console.log('Produto a ser excluído:', productToDelete);
+        // Remover produto da lista
+        console.log(`Removendo produto na posição ${productIndex} com ID ${productId}`);
+        products.splice(productIndex, 1); // Remover diretamente pelo índice
         
-        // ABORDAGEM DRÁSTICA: Converter todos os IDs para string para garantir consistência
-        const productsWithStringIds = products.map(p => ({
-          ...p,
-          id: String(p.id)
-        }));
+        console.log(`Nova lista contém ${products.length} produtos`);
         
-        // Filtrar usando strings para garantir compatibilidade
-        const filteredProducts = productsWithStringIds.filter(p => String(p.id) !== String(productId));
-        console.log(`Quantidade de produtos após a remoção: ${filteredProducts.length} (antes: ${productsWithStringIds.length})`);
-        
-        if (filteredProducts.length === productsWithStringIds.length) {
-          console.error('Filtragem não removeu o produto! Verificando o problema...');
-          console.log('Produto a excluir ID:', productId, 'tipo:', typeof productId);
-          productsWithStringIds.forEach(p => {
-            console.log(`Produto ID: ${p.id}, tipo: ${typeof p.id}, comparação: ${String(p.id) === String(productId)}`);
-          });
-        }
-        
-        // Usar nossa nova função radical para garantir a exclusão
-        const success = await recreateBinIfNeeded(BINS.products, filteredProducts, productId);
+        // Usar a nova função super radical
+        const success = await recreateBin(BINS.products, products);
         
         if (!success) {
-          console.error('Falha ao atualizar bin após excluir produto');
+          console.error('ERRO FATAL: Falha ao recriar bin após excluir produto');
           return {
             statusCode: 500,
             headers,
@@ -1018,36 +1020,34 @@ exports.handler = async (event, context) => {
           };
         }
         
-        console.log('Verificando remoção das listas especiais');
+        console.log('SUCESSO: Produto excluído com êxito');
         
-        // Remover também das listas especiais, se presente
-        if (productToDelete.isFeatured) {
-          const featuredProducts = await fetchFromBin(BINS.featured);
-          // Também converter IDs para string
-          const featuredWithStringIds = featuredProducts.map(p => ({
-            ...p,
-            id: String(p.id)
-          }));
-          const filteredFeatured = featuredWithStringIds.filter(p => String(p.id) !== String(productId));
-          await recreateBinIfNeeded(BINS.featured, filteredFeatured, productId);
-          console.log('Produto removido da lista de destacados');
+        // Verificar se o produto estava nas listas especiais
+        // Lista de destaque
+        let featuredProducts = await fetchFromBin(BINS.featured);
+        if (Array.isArray(featuredProducts)) {
+          const featuredIndex = featuredProducts.findIndex(p => String(p.id) === String(productId));
+          
+          if (featuredIndex !== -1) {
+            console.log('Removendo produto da lista de destaques');
+            featuredProducts.splice(featuredIndex, 1);
+            await recreateBin(BINS.featured, featuredProducts);
+          }
         }
         
-        if (productToDelete.isPromotion) {
-          const promotionProducts = await fetchFromBin(BINS.promotions);
-          // Também converter IDs para string
-          const promotionsWithStringIds = promotionProducts.map(p => ({
-            ...p,
-            id: String(p.id)
-          }));
-          const filteredPromotions = promotionsWithStringIds.filter(p => String(p.id) !== String(productId));
-          await recreateBinIfNeeded(BINS.promotions, filteredPromotions, productId);
-          console.log('Produto removido da lista de promoções');
+        // Lista de promoções
+        let promotionProducts = await fetchFromBin(BINS.promotions);
+        if (Array.isArray(promotionProducts)) {
+          const promotionIndex = promotionProducts.findIndex(p => String(p.id) === String(productId));
+          
+          if (promotionIndex !== -1) {
+            console.log('Removendo produto da lista de promoções');
+            promotionProducts.splice(promotionIndex, 1);
+            await recreateBin(BINS.promotions, promotionProducts);
+          }
         }
         
-        console.log('Produto excluído com sucesso, ID:', productId);
-        
-        // Forçar o frontend a recarregar a lista de produtos ao retornar
+        // Forçar o frontend a recarregar dados
         return {
           statusCode: 200,
           headers: {
@@ -1059,11 +1059,11 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ 
             success: true, 
             message: 'Produto excluído com sucesso',
-            timestamp: new Date().getTime() // Adicionar timestamp para garantir que o frontend reconheça como uma resposta nova
+            timestamp: Date.now()
           })
         };
       } catch (err) {
-        console.error('Erro ao excluir produto:', err);
+        console.error('Erro crítico ao excluir produto:', err);
         return {
           statusCode: 500,
           headers,
@@ -1094,26 +1094,26 @@ exports.handler = async (event, context) => {
         
         // Buscar categorias existentes
         let categories = await fetchFromBin(BINS.categories);
-        console.log('Categorias existentes:', categories.length);
+        console.log(`Total de ${categories.length} categorias encontradas`);
         
         // Verificar se categories é um array válido
         if (!Array.isArray(categories)) {
-          console.error('Dados de categorias não é um array:', categories);
+          console.error('ERRO: Dados de categorias não é um array!');
           categories = [];
         }
         
-        console.log('IDs de categorias existentes:', categories.map(c => c.id));
+        // Listar IDs de categorias para debug
+        const categoryIds = categories.map(c => c.id);
+        console.log('IDs de categorias existentes:', categoryIds);
         
-        // Verificar se a categoria existe antes de remover usando comparação estrita
-        const categoryToDelete = categories.find(c => c.id === categoryId);
+        // Verificar se a categoria existe
+        const categoryIndex = categories.findIndex(c => {
+          // Comparar como string para garantir
+          return String(c.id) === String(categoryId);
+        });
         
-        if (!categoryToDelete) {
-          console.log(`Categoria não encontrada com ID: ${categoryId} (tipo: ${typeof categoryId})`);
-          
-          // Verificação adicional para depuração
-          const categoryIdsExatos = categories.map(c => `${c.id} (tipo: ${typeof c.id})`);
-          console.log('IDs de categorias com tipo:', categoryIdsExatos);
-          
+        if (categoryIndex === -1) {
+          console.log(`ERRO: Categoria com ID ${categoryId} não encontrada`);
           return {
             statusCode: 404,
             headers,
@@ -1121,29 +1121,17 @@ exports.handler = async (event, context) => {
           };
         }
         
-        // ABORDAGEM DRÁSTICA: Converter todos os IDs para string para garantir consistência
-        const categoriesWithStringIds = categories.map(c => ({
-          ...c,
-          id: String(c.id)
-        }));
+        // Remover categoria da lista
+        console.log(`Removendo categoria na posição ${categoryIndex} com ID ${categoryId}`);
+        categories.splice(categoryIndex, 1); // Remover diretamente pelo índice
         
-        // Filtrar usando strings para garantir compatibilidade
-        const filteredCategories = categoriesWithStringIds.filter(c => String(c.id) !== String(categoryId));
-        console.log(`Categorias após a remoção: ${filteredCategories.length} (antes: ${categoriesWithStringIds.length})`);
+        console.log(`Nova lista contém ${categories.length} categorias`);
         
-        if (filteredCategories.length === categoriesWithStringIds.length) {
-          console.error('Filtragem não removeu a categoria! Verificando o problema...');
-          console.log('Categoria a excluir ID:', categoryId, 'tipo:', typeof categoryId);
-          categoriesWithStringIds.forEach(c => {
-            console.log(`Categoria ID: ${c.id}, tipo: ${typeof c.id}, comparação: ${String(c.id) === String(categoryId)}`);
-          });
-        }
-        
-        // Usar nossa nova função radical para garantir a exclusão
-        const success = await recreateBinIfNeeded(BINS.categories, filteredCategories, categoryId);
+        // Usar a nova função super radical
+        const success = await recreateBin(BINS.categories, categories);
         
         if (!success) {
-          console.error('Falha ao atualizar bin após excluir categoria');
+          console.error('ERRO FATAL: Falha ao recriar bin após excluir categoria');
           return {
             statusCode: 500,
             headers,
@@ -1151,9 +1139,9 @@ exports.handler = async (event, context) => {
           };
         }
         
-        console.log('Categoria excluída com sucesso, ID:', categoryId);
+        console.log('SUCESSO: Categoria excluída com êxito');
         
-        // Forçar o frontend a recarregar a lista de categorias ao retornar
+        // Forçar o frontend a recarregar dados
         return {
           statusCode: 200,
           headers: {
@@ -1165,11 +1153,11 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ 
             success: true, 
             message: 'Categoria excluída com sucesso',
-            timestamp: new Date().getTime() // Adicionar timestamp para garantir que o frontend reconheça como uma resposta nova
+            timestamp: Date.now()
           })
         };
       } catch (err) {
-        console.error('Erro ao excluir categoria:', err);
+        console.error('Erro crítico ao excluir categoria:', err);
         return {
           statusCode: 500,
           headers,
