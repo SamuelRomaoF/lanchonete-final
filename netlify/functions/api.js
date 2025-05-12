@@ -576,8 +576,16 @@ exports.handler = async (event, context) => {
     // PUT - Atualizar categoria existente
     if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'PUT') {
       try {
-        const categoryId = parseInt(path.split('/').pop());
+        console.log('Tentando atualizar categoria com caminho:', path);
+        
+        // Extrair ID da categoria da URL de forma mais robusta
+        const parts = path.split('/');
+        const categoryId = parseInt(parts[parts.length - 1]);
+        
+        console.log('ID da categoria a atualizar:', categoryId);
+        
         const updateData = JSON.parse(event.body);
+        console.log('Dados para atualização:', updateData);
         
         // Buscar categorias existentes
         const categories = await fetchFromBin(BINS.categories);
@@ -586,12 +594,15 @@ exports.handler = async (event, context) => {
         const categoryIndex = categories.findIndex(c => c.id === categoryId);
         
         if (categoryIndex === -1) {
+          console.log('Categoria não encontrada com ID:', categoryId);
           return {
             statusCode: 404,
             headers,
             body: JSON.stringify({ error: 'Categoria não encontrada' })
           };
         }
+        
+        console.log('Categoria original:', categories[categoryIndex]);
         
         // Atualizar a categoria
         const updatedCategory = {
@@ -600,10 +611,23 @@ exports.handler = async (event, context) => {
           id: categoryId // Garantir que o ID não mude
         };
         
+        console.log('Categoria atualizada:', updatedCategory);
+        
         categories[categoryIndex] = updatedCategory;
         
         // Salvar as alterações
-        await updateBin(BINS.categories, categories);
+        const success = await updateBin(BINS.categories, categories);
+        
+        if (!success) {
+          console.error('Falha ao atualizar categoria no bin');
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao atualizar categoria' })
+          };
+        }
+        
+        console.log('Categoria atualizada com sucesso, ID:', categoryId);
         
         return {
           statusCode: 200,
@@ -623,15 +647,23 @@ exports.handler = async (event, context) => {
     // DELETE - Excluir categoria
     if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
-        const categoryId = parseInt(path.split('/').pop());
+        console.log('Tentando excluir categoria com caminho:', path);
+        
+        // Extrair ID da categoria da URL de forma mais robusta
+        const parts = path.split('/');
+        const categoryId = parseInt(parts[parts.length - 1]);
+        
+        console.log('ID da categoria a excluir:', categoryId);
         
         // Buscar categorias existentes
         const categories = await fetchFromBin(BINS.categories);
+        console.log('Categorias existentes:', categories);
         
-        // Filtrar a categoria a ser removida
-        const filteredCategories = categories.filter(c => c.id !== categoryId);
+        // Verificar se a categoria existe antes de remover
+        const categoryExists = categories.some(c => c.id === categoryId);
         
-        if (filteredCategories.length === categories.length) {
+        if (!categoryExists) {
+          console.log('Categoria não encontrada com ID:', categoryId);
           return {
             statusCode: 404,
             headers,
@@ -639,8 +671,23 @@ exports.handler = async (event, context) => {
           };
         }
         
+        // Filtrar a categoria a ser removida
+        const filteredCategories = categories.filter(c => c.id !== categoryId);
+        console.log('Categorias após a remoção:', filteredCategories);
+        
         // Salvar as alterações
-        await updateBin(BINS.categories, filteredCategories);
+        const success = await updateBin(BINS.categories, filteredCategories);
+        
+        if (!success) {
+          console.error('Falha ao atualizar bin após excluir categoria');
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao excluir categoria' })
+          };
+        }
+        
+        console.log('Categoria excluída com sucesso, ID:', categoryId);
         
         return {
           statusCode: 200,
@@ -660,8 +707,16 @@ exports.handler = async (event, context) => {
     // PUT - Atualizar produto existente
     if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'PUT') {
       try {
-        const productId = parseInt(path.split('/').pop());
+        console.log('Tentando atualizar produto com caminho:', path);
+        
+        // Extrair ID do produto da URL de forma mais robusta
+        const parts = path.split('/');
+        const productId = parseInt(parts[parts.length - 1]);
+        
+        console.log('ID do produto a atualizar:', productId);
+        
         const updateData = JSON.parse(event.body);
+        console.log('Dados para atualização:', updateData);
         
         // Buscar produtos existentes
         const products = await fetchFromBin(BINS.products);
@@ -670,12 +725,15 @@ exports.handler = async (event, context) => {
         const productIndex = products.findIndex(p => p.id === productId);
         
         if (productIndex === -1) {
+          console.log('Produto não encontrado com ID:', productId);
           return {
             statusCode: 404,
             headers,
             body: JSON.stringify({ error: 'Produto não encontrado' })
           };
         }
+        
+        console.log('Produto original:', products[productIndex]);
         
         // Verificar status anterior de featured e promotion
         const wasFeatureBefore = products[productIndex].isFeatured;
@@ -688,19 +746,38 @@ exports.handler = async (event, context) => {
           id: productId // Garantir que o ID não mude
         };
         
+        console.log('Produto atualizado:', updatedProduct);
+        
         products[productIndex] = updatedProduct;
         
         // Salvar as alterações na lista de produtos
-        await updateBin(BINS.products, products);
+        const success = await updateBin(BINS.products, products);
+        
+        if (!success) {
+          console.error('Falha ao atualizar produto no bin');
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao atualizar produto' })
+          };
+        }
+        
+        console.log('Produto atualizado na lista principal');
         
         // Atualizar lista de featured se necessário
         if (updatedProduct.isFeatured !== wasFeatureBefore) {
+          console.log('Status de featured alterado, atualizando lista...');
+          
           const featuredProducts = await fetchFromBin(BINS.featured);
+          
           if (updatedProduct.isFeatured) {
             // Adicionar aos destaques
+            console.log('Adicionando produto aos destaques');
             featuredProducts.push(updatedProduct);
+            await updateBin(BINS.featured, featuredProducts);
           } else {
             // Remover dos destaques
+            console.log('Removendo produto dos destaques');
             const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
             await updateBin(BINS.featured, filteredFeatured);
           }
@@ -708,16 +785,24 @@ exports.handler = async (event, context) => {
         
         // Atualizar lista de promotions se necessário
         if (updatedProduct.isPromotion !== wasPromotionBefore) {
+          console.log('Status de promoção alterado, atualizando lista...');
+          
           const promotionProducts = await fetchFromBin(BINS.promotions);
+          
           if (updatedProduct.isPromotion) {
             // Adicionar às promoções
+            console.log('Adicionando produto às promoções');
             promotionProducts.push(updatedProduct);
+            await updateBin(BINS.promotions, promotionProducts);
           } else {
             // Remover das promoções
+            console.log('Removendo produto das promoções');
             const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
             await updateBin(BINS.promotions, filteredPromotions);
           }
         }
+        
+        console.log('Produto atualizado com sucesso, ID:', productId);
         
         return {
           statusCode: 200,
@@ -737,15 +822,23 @@ exports.handler = async (event, context) => {
     // DELETE - Excluir produto
     if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
-        const productId = parseInt(path.split('/').pop());
+        console.log('Tentando excluir produto com caminho:', path);
+        
+        // Extrair ID do produto da URL de forma mais robusta
+        const parts = path.split('/');
+        const productId = parseInt(parts[parts.length - 1]);
+        
+        console.log('ID do produto a excluir:', productId);
         
         // Buscar produtos existentes
         const products = await fetchFromBin(BINS.products);
+        console.log('Produtos existentes:', products.length);
         
         // Buscar produto a ser removido
         const productToDelete = products.find(p => p.id === productId);
         
         if (!productToDelete) {
+          console.log('Produto não encontrado com ID:', productId);
           return {
             statusCode: 404,
             headers,
@@ -753,24 +846,42 @@ exports.handler = async (event, context) => {
           };
         }
         
+        console.log('Produto a ser excluído:', productToDelete);
+        
         // Filtrar o produto a ser removido
         const filteredProducts = products.filter(p => p.id !== productId);
+        console.log('Quantidade de produtos após a remoção:', filteredProducts.length);
         
         // Salvar as alterações
-        await updateBin(BINS.products, filteredProducts);
+        const success = await updateBin(BINS.products, filteredProducts);
+        
+        if (!success) {
+          console.error('Falha ao atualizar bin após excluir produto');
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao excluir produto' })
+          };
+        }
+        
+        console.log('Verificando remoção das listas especiais');
         
         // Remover também das listas especiais, se presente
         if (productToDelete.isFeatured) {
           const featuredProducts = await fetchFromBin(BINS.featured);
           const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
           await updateBin(BINS.featured, filteredFeatured);
+          console.log('Produto removido da lista de destacados');
         }
         
         if (productToDelete.isPromotion) {
           const promotionProducts = await fetchFromBin(BINS.promotions);
           const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
           await updateBin(BINS.promotions, filteredPromotions);
+          console.log('Produto removido da lista de promoções');
         }
+        
+        console.log('Produto excluído com sucesso, ID:', productId);
         
         return {
           statusCode: 200,
