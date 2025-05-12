@@ -1,12 +1,9 @@
 [build]
-  command = "npm run build:client && npm run build:functions"
+  command = "CI= npm run build:client"
   publish = "dist"
-  functions = "netlify/functions"
-
-[dev]
-  command = "npm run dev"
-  port = 3000
-  targetPort = 3001
+  
+[functions]
+  directory = "netlify/functions"
 
 [[redirects]]
   from = "/api/*"

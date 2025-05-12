@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "name": "Hambúrgueres",
+    "description": "Deliciosos hambúrgueres artesanais",
+    "imageUrl": "https://images.unsplash.com/photo-1586190848861-99aa4a171e90"
+  },
+  {
+    "id": 2,
+    "name": "Pizzas",
+    "description": "Pizzas com bordas recheadas",
+    "imageUrl": "https://images.unsplash.com/photo-1590947132387-155cc02f3212"
+  },
+  {
+    "id": 3,
+    "name": "Porções",
+    "description": "Porções para compartilhar",
+    "imageUrl": "https://images.unsplash.com/photo-1630384060421-cb20d0e0649d"
+  },
+  {
+    "id": 4,
+    "name": "Bebidas",
+    "description": "Refrigerantes e sucos",
+    "imageUrl": "https://images.unsplash.com/photo-1613564834361-9436948817d1"
+  }
+] 
