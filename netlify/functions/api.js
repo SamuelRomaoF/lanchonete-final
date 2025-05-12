@@ -5,7 +5,8 @@ const BINS = {
   categories: '682162cf8561e97a5012185b', // ID do bin para categorias
   products: '682162fc8960c979a597b1f3',   // ID do bin para produtos
   featured: '682162fe8960c979a597b1f7',   // ID do bin para produtos em destaque
-  promotions: '682163018561e97a50121874'  // ID do bin para produtos em promoção
+  promotions: '682163018561e97a50121874',  // ID do bin para produtos em promoção
+  users: '682164e48a456b79669bf1ef'  // ID do bin para usuários
 };
 
 // Funções para interagir com JSONBin.io
@@ -54,11 +55,60 @@ async function updateBin(binId, data) {
   }
 }
 
+// Funções para manipulação de usuários
+async function getUserByEmail(email) {
+  try {
+    const users = await fetchFromBin(BINS.users);
+    return users.find(user => user.email === email);
+  } catch (error) {
+    console.error('Erro ao buscar usuário:', error);
+    return null;
+  }
+}
+
+// Função para verificar se o bin de usuários já existe e criar um admin se necessário
+async function initializeUsersBin() {
+  try {
+    // Se o bin de usuários não está configurado, não podemos fazer nada ainda
+    if (!BINS.users) {
+      console.log('Bin de usuários não configurado!');
+      return;
+    }
+
+    // Tenta buscar os usuários
+    let users = await fetchFromBin(BINS.users);
+    
+    // Se não existem usuários ainda, cria o usuário admin
+    if (!users || users.length === 0) {
+      console.log('Criando usuário admin inicial...');
+      
+      const adminUser = {
+        id: 1,
+        name: 'Administrador',
+        email: 'adm@lanchonete.com',
+        // Esta não é uma maneira segura de armazenar senhas, mas é simples para uma demonstração
+        password: 'admin123',
+        type: 'admin',
+        createdAt: new Date().toISOString()
+      };
+      
+      users = [adminUser];
+      await updateBin(BINS.users, users);
+      console.log('Usuário admin criado com sucesso!');
+    }
+  } catch (error) {
+    console.error('Erro ao inicializar bin de usuários:', error);
+  }
+}
+
+// Inicializar o bin de usuários quando a função é carregada
+initializeUsersBin();
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
     'Content-Type': 'application/json'
   };
@@ -78,6 +128,58 @@ exports.handler = async (event, context) => {
         headers,
         body: JSON.stringify({ message: 'CORS preflight successful' })
       };
+    }
+    
+    // POST - Login de usuários
+    if ((path === '/auth/login' || path === '/api/auth/login') && event.httpMethod === 'POST') {
+      try {
+        const { email, password } = JSON.parse(event.body);
+        
+        if (!email || !password) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Email e senha são obrigatórios' })
+          };
+        }
+        
+        // Buscar usuário pelo email
+        const user = await getUserByEmail(email);
+        
+        if (!user) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ error: 'Email ou senha inválidos' })
+          };
+        }
+        
+        // Para simplificar, estamos fazendo uma comparação direta aqui
+        // Em um ambiente real, você usaria bcrypt ou similar
+        if (user.password !== password) {
+          return {
+            statusCode: 401,
+            headers,
+            body: JSON.stringify({ error: 'Email ou senha inválidos' })
+          };
+        }
+        
+        // Remover a senha antes de retornar
+        const { password: _, ...userWithoutPassword } = user;
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ user: userWithoutPassword })
+        };
+      } catch (err) {
+        console.error('Erro ao fazer login:', err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro interno do servidor', details: err.message })
+        };
+      }
     }
     
     // POST - Criar nova categoria
