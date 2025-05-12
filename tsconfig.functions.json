@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "CommonJS",
+    "module": "ES2020",
     "moduleResolution": "Node",
     "esModuleInterop": true,
     "outDir": "netlify/functions-dist",
@@ -17,5 +17,5 @@
     }
   },
   "include": ["netlify/functions/**/*.ts", "server/**/*.ts", "shared/**/*.ts"],
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "server/index.ts", "server/vite.ts"]
 } 
