@@ -1,8 +1,6 @@
-import { useCart } from "@/context/CartContext";
-import { formatCurrency } from "@/lib/utils/formatCurrency";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils/formatCurrency";
 
 interface ProductCardProps {
   id: number;
@@ -25,25 +23,6 @@ const ProductCard = ({
   isFeatured, 
   isPromotion 
 }: ProductCardProps) => {
-  const { addItem } = useCart();
-  const { toast } = useToast();
-  
-  const handleAddToCart = () => {
-    addItem({
-      id,
-      name,
-      price,
-      imageUrl,
-      quantity: 1
-    });
-    
-    toast({
-      title: "Adicionado ao carrinho",
-      description: `${name} foi adicionado ao seu carrinho`,
-      variant: "default",
-    });
-  };
-  
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg card-transition">
       <img 
@@ -77,10 +56,9 @@ const ProductCard = ({
             )}
           </div>
           <Button 
-            onClick={handleAddToCart}
             className="bg-primary hover:bg-primary-dark text-white font-medium py-2 px-4 rounded-lg"
           >
-            Adicionar
+            Ver Detalhes
           </Button>
         </div>
       </div>

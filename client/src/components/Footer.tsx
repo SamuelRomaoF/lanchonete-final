@@ -8,10 +8,10 @@ const Footer = () => {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <i className="ri-restaurant-2-fill text-3xl text-primary"></i>
-              <span className="text-xl font-bold text-white font-poppins">FastLanche Faculdade</span>
+              <span className="text-xl font-bold text-white font-poppins">Cantina Universitária</span>
             </div>
             <p className="text-neutral-300 mb-4">
-              Lanches deliciosos e atendimento de qualidade para os estudantes e funcionários da faculdade!
+              Lanches frescos e saborosos para alimentar seu corpo e mente durante a jornada acadêmica.
             </p>
 
           </div>
@@ -27,21 +27,6 @@ const Footer = () => {
               <li>
                 <Link href="/produtos" className="text-neutral-300 hover:text-white transition-colors">
                   Cardápio
-                </Link>
-              </li>
-              <li>
-                <Link href="/produtos" className="text-neutral-300 hover:text-white transition-colors">
-                  Promoções
-                </Link>
-              </li>
-              <li>
-                <Link href="/" className="text-neutral-300 hover:text-white transition-colors">
-                  Sobre Nós
-                </Link>
-              </li>
-              <li>
-                <Link href="/" className="text-neutral-300 hover:text-white transition-colors">
-                  Contato
                 </Link>
               </li>
             </ul>
@@ -70,7 +55,7 @@ const Footer = () => {
           </div>
           
           <div>
-            <h3 className="font-semibold text-lg mb-4">Contato</h3>
+            <h3 className="font-semibold text-lg mb-4">Localização</h3>
             <ul className="space-y-2">
               <li className="flex items-start space-x-2">
                 <i className="ri-map-pin-line text-neutral-300 mt-1"></i>
@@ -85,7 +70,7 @@ const Footer = () => {
         <div className="border-t border-neutral-700 pt-6 mt-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-neutral-400 text-sm mb-4 md:mb-0">
-              © {new Date().getFullYear()} FastLanche. Todos os direitos reservados.
+              © {new Date().getFullYear()} Cantina Universitária. Todos os direitos reservados.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-neutral-400 hover:text-white text-sm transition-colors">

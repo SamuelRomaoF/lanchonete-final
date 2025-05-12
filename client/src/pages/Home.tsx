@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
-import { Link } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import ProductCard from "@/components/ProductCard";
 import CategoryCard from "@/components/CategoryCard";
+import ProductCard from "@/components/ProductCard";
+import { Button } from "@/components/ui/button";
 import { Category, Product } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
 
 const Home = () => {
   // Buscar categorias
@@ -55,18 +54,13 @@ const Home = () => {
         
         <div className="container mx-auto px-4 relative z-20">
           <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Lanches deliciosos, entrega rápida!</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Lanches rápidos para seu dia na universidade!</h1>
             <p className="text-lg mb-8 opacity-90">
-              Os melhores hambúrgueres, pizzas e lanches da cidade, direto na sua casa. Peça agora e receba em até 40 minutos!
+              Os melhores lanches para dar energia aos seus estudos. Faça uma pausa e venha experimentar nossas delícias!
             </p>
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
               <Link href="/produtos">
                 <Button size="lg" className="bg-primary hover:bg-primary-dark text-white font-medium py-3 px-6 rounded-lg">
-                  Fazer Pedido Agora
-                </Button>
-              </Link>
-              <Link href="/produtos">
-                <Button size="lg" variant="outline" className="bg-white hover:bg-neutral-lightest text-neutral-dark font-medium py-3 px-6 rounded-lg">
                   Ver Cardápio
                 </Button>
               </Link>
@@ -110,7 +104,7 @@ const Home = () => {
       <section className="py-12 bg-neutral-lightest">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-2 text-center">Mais Populares</h2>
-          <p className="text-center text-neutral mb-8">Os lanches favoritos dos nossos clientes</p>
+          <p className="text-center text-neutral mb-8">Os favoritos dos estudantes e professores</p>
           
           {productsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -165,11 +159,11 @@ const Home = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl overflow-hidden shadow-lg">
               <div className="p-6 md:p-8">
-                <h3 className="text-xl md:text-2xl font-bold mb-2">Terça de Pizza</h3>
-                <p className="mb-4 opacity-90">Toda terça-feira, compre uma pizza grande e ganhe uma pequena grátis!</p>
+                <h3 className="text-xl md:text-2xl font-bold mb-2">Combo da Manhã</h3>
+                <p className="mb-4 opacity-90">Café + pão na chapa por apenas R$8,90 até as 10h da manhã!</p>
                 <Link href="/produtos">
                   <Button variant="secondary" className="bg-white hover:bg-neutral-lightest text-primary font-medium py-2 px-4 rounded-lg">
-                    Pedir Agora
+                    Ver Detalhes
                   </Button>
                 </Link>
               </div>
@@ -181,7 +175,7 @@ const Home = () => {
                 <p className="mb-4 opacity-90">Hambúrguer, batata e refrigerante por apenas R$ 25,90 com carteirinha!</p>
                 <Link href="/produtos">
                   <Button variant="secondary" className="bg-white hover:bg-neutral-lightest text-secondary font-medium py-2 px-4 rounded-lg">
-                    Pedir Agora
+                    Ver Detalhes
                   </Button>
                 </Link>
               </div>
@@ -194,25 +188,25 @@ const Home = () => {
       <section className="py-12 bg-neutral-lightest">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-2 text-center">Como Funciona</h2>
-          <p className="text-center text-neutral mb-8">Peça seu lanche em apenas 3 passos</p>
+          <p className="text-center text-neutral mb-8">Veja nosso cardápio online e peça pessoalmente</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">1</div>
-              <h3 className="font-semibold mb-2">Escolha seu lanche</h3>
-              <p className="text-neutral">Navegue pelo nosso cardápio e escolha as opções que mais te agradam.</p>
+              <h3 className="font-semibold mb-2">Consulte o cardápio online</h3>
+              <p className="text-neutral">Navegue pelo nosso cardápio no site e descubra todas as opções disponíveis.</p>
             </div>
             
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">2</div>
-              <h3 className="font-semibold mb-2">Realize o pagamento</h3>
-              <p className="text-neutral">Pague com PIX ou cartão de crédito de forma rápida e segura.</p>
+              <h3 className="font-semibold mb-2">Visite nossa cantina</h3>
+              <p className="text-neutral">Compareça à nossa cantina nos horários de funcionamento.</p>
             </div>
             
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">3</div>
-              <h3 className="font-semibold mb-2">Receba em casa</h3>
-              <p className="text-neutral">Acompanhe seu pedido e receba em até 40 minutos na sua porta.</p>
+              <h3 className="font-semibold mb-2">Faça seu pedido pessoalmente</h3>
+              <p className="text-neutral">Realize seu pedido e pagamento diretamente no balcão da cantina.</p>
             </div>
           </div>
         </div>
@@ -235,14 +229,14 @@ const Home = () => {
                   <i className="ri-star-fill"></i>
                 </div>
               </div>
-              <p className="text-neutral mb-4">"Os melhores hambúrgueres que já comi! Ingredientes frescos e um sabor incrível. A entrega foi rápida e o lanche chegou quentinho."</p>
+              <p className="text-neutral mb-4">"Os lanches são perfeitos para a correria da faculdade. Rápidos, saborosos e com preço justo. O atendimento é sempre cordial e eficiente."</p>
               <div className="flex items-center">
                 <div className="w-10 h-10 rounded-full bg-neutral-light flex items-center justify-center mr-3">
                   <span className="font-medium text-neutral-dark">MR</span>
                 </div>
                 <div>
                   <h4 className="font-medium">Marcos R.</h4>
-                  <p className="text-xs text-neutral">Cliente desde 2021</p>
+                  <p className="text-xs text-neutral">Estudante de Engenharia</p>
                 </div>
               </div>
             </div>

@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { apiRequest } from "@/lib/queryClient";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 
 interface User {
   id: number;
@@ -8,31 +8,26 @@ interface User {
   type: 'cliente' | 'admin';
 }
 
-interface RegisterData {
-  name: string;
-  email: string;
-  password: string;
-  phone?: string;
-  address?: string;
+interface AuthProviderProps {
+  children: ReactNode;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: RegisterData) => Promise<void>;
+  login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
 
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
+const AuthContext = createContext<AuthContextType | null>(null);
 
 export function useAuth() {
-  return useContext(AuthContext);
-}
-
-interface AuthProviderProps {
-  children: ReactNode;
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
+  }
+  return context;
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
@@ -63,7 +58,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     checkAuth();
   }, []);
   
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -82,18 +77,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       const data = await response.json();
       console.log("Login bem-sucedido:", data);
-      setUser(data.user);
-      return data.user;
+
+      // Garantir que os dados do usuário estejam no formato correto
+      const userData = data.user || data;
+      setUser(userData);
+      return userData;
     } catch (error) {
       console.error("Erro durante o login:", error);
       throw error;
     }
-  };
-  
-  const register = async (data: RegisterData) => {
-    const response = await apiRequest("POST", "/api/auth/register", data);
-    const resultData = await response.json();
-    await login(data.email, data.password);
   };
   
   const logout = async () => {
@@ -105,14 +97,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     user,
     loading,
     login,
-    register,
     logout,
     checkAuth,
   };
   
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -1,8 +1,8 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { setupAuth } from "./auth";
 import cors from 'cors';
+import express, { NextFunction, type Request, Response } from "express";
+import { setupAuth } from "./auth";
+import { registerRoutes } from "./routes";
+import { log, serveStatic, setupVite } from "./vite";
 
 const app = express();
 
@@ -18,15 +18,15 @@ app.use(express.urlencoded({ extended: false }));
 // Configurar a autenticação e sessão
 setupAuth(app);
 
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
 
   const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
+  res.json = function (bodyJson: any) {
     capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+    return originalResJson.call(res, bodyJson);
   };
 
   res.on("finish", () => {
@@ -59,24 +59,23 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // importante: apenas configura o vite em desenvolvimento e após
+  // configurar todas as outras rotas para que a rota catch-all
+  // não interfira com as outras rotas
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = 5000;
+  // Usar porta 3001 como padrão ou definida pelo ambiente
+  const port = process.env.PORT || 3001;
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: "localhost",
   }, () => {
-    log(`serving on port ${port}`);
+    const address = server.address();
+    const actualPort = typeof address === 'object' && address ? address.port : port;
+    log(`Servidor rodando em http://localhost:${actualPort}`);
   });
 })();

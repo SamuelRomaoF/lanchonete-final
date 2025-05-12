@@ -1,18 +1,15 @@
+import { Express, NextFunction, Request, Response } from 'express';
 import session from 'express-session';
-import { Express, Request, Response, NextFunction } from 'express';
-import connectPgSimple from 'connect-pg-simple';
-import { pool } from './db';
+import MemoryStore from 'memorystore';
 
-const PgStore = connectPgSimple(session);
+const MemoryStoreSession = MemoryStore(session);
 
 export function setupAuth(app: Express) {
-  // Configuração da sessão com PostgreSQL
+  // Configuração da sessão em memória
   app.use(
     session({
-      store: new PgStore({
-        pool,
-        tableName: 'session',
-        createTableIfMissing: true
+      store: new MemoryStoreSession({
+        checkPeriod: 86400000 // limpar sessões expiradas a cada 24h
       }),
       secret: 'fastlanche-secret-key',
       resave: false,

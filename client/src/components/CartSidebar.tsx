@@ -1,14 +1,11 @@
-import { useEffect, useState } from "react";
+import CheckoutForm from "@/components/CheckoutForm";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCart } from "@/context/CartContext";
-import { useAuth } from "@/context/AuthContext";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import CheckoutForm from "@/components/CheckoutForm";
+import { useState } from "react";
 
 interface CartSidebarProps {
   isOpen: boolean;
@@ -17,7 +14,6 @@ interface CartSidebarProps {
 
 const CartSidebar = ({ isOpen, onClose }: CartSidebarProps) => {
   const { cart, updateItemQuantity, removeItem, clearCart } = useCart();
-  const { user } = useAuth();
   const { toast } = useToast();
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
@@ -43,15 +39,6 @@ const CartSidebar = ({ isOpen, onClose }: CartSidebarProps) => {
   };
   
   const handleCheckout = () => {
-    if (!user) {
-      toast({
-        title: "Login Necessário",
-        description: "Faça login para continuar com o pedido",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     if (cart.length === 0) {
       toast({
         title: "Carrinho Vazio",
@@ -83,9 +70,13 @@ const CartSidebar = ({ isOpen, onClose }: CartSidebarProps) => {
             <SheetHeader className="p-4 border-b">
               <SheetTitle className="flex justify-between items-center">
                 <span>Seu Carrinho</span>
-                <SheetClose className="text-neutral hover:text-primary">
+                <button 
+                  onClick={onClose}
+                  className="text-neutral hover:text-primary"
+                  aria-label="Fechar carrinho"
+                >
                   <i className="ri-close-line text-xl"></i>
-                </SheetClose>
+                </button>
               </SheetTitle>
             </SheetHeader>
             

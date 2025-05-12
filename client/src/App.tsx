@@ -1,20 +1,22 @@
-import { Switch, Route } from "wouter";
-import { queryClient } from "./lib/queryClient";
-import { QueryClientProvider } from "@tanstack/react-query";
+import Footer from "@/components/Footer";
+import Navbar from "@/components/Navbar";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import NotFound from "@/pages/not-found";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import Home from "@/pages/Home";
-import ProductsList from "@/pages/ProductsList";
-import OrderHistory from "@/pages/OrderHistory";
-import Dashboard from "@/pages/admin/Dashboard";
-import ProductManagement from "@/pages/admin/ProductManagement";
-import CategoryManagement from "@/pages/admin/CategoryManagement";
-import OrdersList from "@/pages/admin/OrdersList";
-import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { OrderQueueProvider } from "@/context/OrderQueueContext";
+import Home from "@/pages/Home";
+import OrderHistory from "@/pages/OrderHistory";
+import ProductsList from "@/pages/ProductsList";
+import CategoryManagement from "@/pages/admin/CategoryManagement";
+import Dashboard from "@/pages/admin/Dashboard";
+import EmailSettings from "@/pages/admin/EmailSettings";
+import OrdersList from "@/pages/admin/OrdersList";
+import ProductManagement from "@/pages/admin/ProductManagement";
+import WhatsAppOrders from "@/pages/admin/WhatsAppOrders";
+import NotFound from "@/pages/not-found";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { Route, Switch } from "wouter";
+import { queryClient } from "./lib/queryClient";
 
 function Router() {
   return (
@@ -30,6 +32,8 @@ function Router() {
       <Route path="/admin/produtos" component={ProductManagement} />
       <Route path="/admin/categorias" component={CategoryManagement} />
       <Route path="/admin/pedidos" component={OrdersList} />
+      <Route path="/admin/whatsapp" component={WhatsAppOrders} />
+      <Route path="/admin/email" component={EmailSettings} />
       
       {/* Fallback para 404 */}
       <Route component={NotFound} />
@@ -41,7 +45,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <CartProvider>
+        <OrderQueueProvider>
           <TooltipProvider>
             <Toaster />
             
@@ -54,7 +58,7 @@ function App() {
             </div>
             
           </TooltipProvider>
-        </CartProvider>
+        </OrderQueueProvider>
       </AuthProvider>
     </QueryClientProvider>
   );

@@ -1,156 +1,145 @@
-import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, pgEnum } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
-import { relations } from "drizzle-orm";
 
 // Enum para tipos de usuário
-export const userTypeEnum = pgEnum("user_type", ["cliente", "admin"]);
+export type UserType = "cliente" | "admin";
 
 // Enum para status de pedidos
-export const orderStatusEnum = pgEnum("order_status", ["pendente", "confirmado", "preparo", "entrega", "concluido", "cancelado"]);
+export type OrderStatus = "pendente" | "confirmado" | "preparo" | "entrega" | "concluido" | "cancelado";
 
 // Enum para métodos de pagamento
-export const paymentMethodEnum = pgEnum("payment_method", ["pix", "cartao"]);
+export type PaymentMethod = "pix" | "cartao";
 
-// Tabela de usuários
-export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
-  address: text("address"),
-  phone: text("phone"),
-  type: userTypeEnum("type").notNull().default("cliente"),
-  createdAt: timestamp("created_at").defaultNow(),
+// Tipos de entidades
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  address?: string;
+  phone?: string;
+  type: UserType;
+  createdAt: Date;
+}
+
+export interface Category {
+  id: number;
+  name: string;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface Product {
+  id: number;
+  name: string;
+  description?: string;
+  price: number;
+  imageUrl?: string;
+  isFeatured: boolean;
+  isPromotion: boolean;
+  oldPrice?: number;
+  categoryId: number;
+  available: boolean;
+  createdAt: Date;
+}
+
+export interface Order {
+  id: number;
+  userId: number;
+  status: OrderStatus;
+  total: number;
+  address: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface OrderItem {
+  id: number;
+  orderId: number;
+  productId: number;
+  quantity: number;
+  price: number;
+  subtotal: number;
+}
+
+export interface Payment {
+  id: number;
+  orderId: number;
+  method: PaymentMethod;
+  status: string;
+  externalId?: string;
+  amount: number;
+  createdAt: Date;
+}
+
+// Schemas de validação com Zod
+export const userSchema = z.object({
+  id: z.number().optional(),
+  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
+  type: z.enum(["cliente", "admin"]).default("cliente"),
+  createdAt: z.date().optional()
 });
 
-export const userRelations = relations(users, ({ many }) => ({
-  orders: many(orders),
-}));
-
-// Tabela de categorias
-export const categories = pgTable("categories", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  imageUrl: text("image_url"),
+export const categorySchema = z.object({
+  id: z.number().optional(),
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  description: z.string().optional(),
+  imageUrl: z.string().url().optional()
 });
 
-export const categoryRelations = relations(categories, ({ many }) => ({
-  products: many(products),
-}));
-
-// Tabela de produtos
-export const products = pgTable("products", {
-  id: serial("id").primaryKey(),
-  name: text("name").notNull(),
-  description: text("description"),
-  price: doublePrecision("price").notNull(),
-  imageUrl: text("image_url"),
-  isFeatured: boolean("is_featured").default(false),
-  isPromotion: boolean("is_promotion").default(false),
-  oldPrice: doublePrecision("old_price"),
-  categoryId: integer("category_id").references(() => categories.id),
-  available: boolean("available").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+export const productSchema = z.object({
+  id: z.number().optional(),
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  description: z.string().optional(),
+  price: z.number().positive("Preço deve ser um valor positivo"),
+  imageUrl: z.string().url().optional(),
+  isFeatured: z.boolean().default(false),
+  isPromotion: z.boolean().default(false),
+  oldPrice: z.number().positive().optional(),
+  categoryId: z.number().int().positive(),
+  available: z.boolean().default(true),
+  createdAt: z.date().optional()
 });
 
-export const productRelations = relations(products, ({ one, many }) => ({
-  category: one(categories, {
-    fields: [products.categoryId],
-    references: [categories.id],
-  }),
-  orderItems: many(orderItems)
-}));
-
-// Tabela de pedidos
-export const orders = pgTable("orders", {
-  id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  status: orderStatusEnum("status").notNull().default("pendente"),
-  total: doublePrecision("total").notNull(),
-  address: text("address").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+export const orderSchema = z.object({
+  id: z.number().optional(),
+  userId: z.number().int().positive(),
+  status: z.enum(["pendente", "confirmado", "preparo", "entrega", "concluido", "cancelado"]).default("pendente"),
+  total: z.number().positive("Total deve ser um valor positivo"),
+  address: z.string().min(5, "Endereço deve ser informado"),
+  createdAt: z.date().optional(),
+  updatedAt: z.date().optional()
 });
 
-export const orderRelations = relations(orders, ({ one, many }) => ({
-  user: one(users, {
-    fields: [orders.userId],
-    references: [users.id],
-  }),
-  items: many(orderItems),
-  payment: one(payments),
-}));
-
-// Tabela de itens do pedido
-export const orderItems = pgTable("order_items", {
-  id: serial("id").primaryKey(),
-  orderId: integer("order_id").references(() => orders.id),
-  productId: integer("product_id").references(() => products.id),
-  quantity: integer("quantity").notNull(),
-  price: doublePrecision("price").notNull(),
-  subtotal: doublePrecision("subtotal").notNull(),
+export const orderItemSchema = z.object({
+  id: z.number().optional(),
+  orderId: z.number().int().positive(),
+  productId: z.number().int().positive(),
+  quantity: z.number().int().positive("Quantidade deve ser um valor positivo"),
+  price: z.number().positive("Preço deve ser um valor positivo"),
+  subtotal: z.number().positive("Subtotal deve ser um valor positivo")
 });
 
-export const orderItemRelations = relations(orderItems, ({ one }) => ({
-  order: one(orders, {
-    fields: [orderItems.orderId],
-    references: [orders.id],
-  }),
-  product: one(products, {
-    fields: [orderItems.productId],
-    references: [products.id],
-  }),
-}));
-
-// Tabela de pagamentos
-export const payments = pgTable("payments", {
-  id: serial("id").primaryKey(),
-  orderId: integer("order_id").references(() => orders.id).unique(),
-  method: paymentMethodEnum("method").notNull(),
-  status: text("status").notNull().default("pendente"),
-  externalId: text("external_id"),
-  amount: doublePrecision("amount").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+export const paymentSchema = z.object({
+  id: z.number().optional(),
+  orderId: z.number().int().positive(),
+  method: z.enum(["pix", "cartao"]),
+  status: z.string().default("pendente"),
+  externalId: z.string().optional(),
+  amount: z.number().positive("Valor deve ser positivo"),
+  createdAt: z.date().optional()
 });
 
-export const paymentRelations = relations(payments, ({ one }) => ({
-  order: one(orders, {
-    fields: [payments.orderId],
-    references: [orders.id],
-  }),
-}));
-
-// Schemas de Inserção e Tipos
-export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertCategorySchema = createInsertSchema(categories).omit({
-  id: true,
-});
-
-export const insertProductSchema = createInsertSchema(products).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertOrderSchema = createInsertSchema(orders).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
-  id: true,
-});
-
-export const insertPaymentSchema = createInsertSchema(payments).omit({
-  id: true,
-  createdAt: true,
-});
+// Schemas para inserção
+export const insertUserSchema = userSchema.omit({ id: true, createdAt: true });
+export const insertCategorySchema = categorySchema.omit({ id: true });
+export const insertProductSchema = productSchema.omit({ id: true, createdAt: true });
+export const insertOrderSchema = orderSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOrderItemSchema = orderItemSchema.omit({ id: true });
+export const insertPaymentSchema = paymentSchema.omit({ id: true, createdAt: true });
 
 // Tipos de Inserção
 export type InsertUser = z.infer<typeof insertUserSchema>;
@@ -159,11 +148,3 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-
-// Tipos de Seleção
-export type User = typeof users.$inferSelect;
-export type Category = typeof categories.$inferSelect;
-export type Product = typeof products.$inferSelect;
-export type Order = typeof orders.$inferSelect;
-export type OrderItem = typeof orderItems.$inferSelect;
-export type Payment = typeof payments.$inferSelect;

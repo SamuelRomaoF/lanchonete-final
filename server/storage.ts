@@ -1,13 +1,17 @@
-import { 
-  users, type User, type InsertUser,
-  categories, type Category, type InsertCategory,
-  products, type Product, type InsertProduct,
-  orders, type Order, type InsertOrder,
-  orderItems, type OrderItem, type InsertOrderItem,
-  payments, type Payment, type InsertPayment
+import {
+    type Category, type InsertCategory,
+    type InsertOrder,
+    type InsertOrderItem,
+    type InsertPayment,
+    type InsertProduct,
+    type InsertUser,
+    type Order,
+    type OrderItem,
+    type Payment,
+    type Product,
+    type User
 } from "@shared/schema";
 import * as bcrypt from 'bcrypt';
-import { eq, and, desc, gte, lte, asc, like, inArray } from "drizzle-orm";
 
 // Interface de armazenamento
 export interface IStorage {
@@ -96,7 +100,7 @@ export class MemStorage implements IStorage {
     // Criar usuário administrador padrão
     await this.createUser({
       name: 'Administrador',
-      email: 'admin@fastlanche.com.br',
+      email: 'adm@lanchonete.com',
       password: await bcrypt.hash('admin123', 10),
       type: 'admin'
     });
@@ -267,13 +271,13 @@ export class MemStorage implements IStorage {
 
   async getFeaturedProducts(): Promise<Product[]> {
     return Array.from(this.products.values()).filter(
-      product => product.isFeatured === true
+      product => product.isFeatured
     );
   }
 
   async getPromotionProducts(): Promise<Product[]> {
     return Array.from(this.products.values()).filter(
-      product => product.isPromotion === true
+      product => product.isPromotion
     );
   }
 
@@ -304,15 +308,15 @@ export class MemStorage implements IStorage {
   
   // Implementação de Pedidos
   async getOrders(): Promise<Order[]> {
-    return Array.from(this.orders.values()).sort(
-      (a, b) => b.createdAt.getTime() - a.createdAt.getTime()
+    return Array.from(this.orders.values()).sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
 
   async getOrdersByUser(userId: number): Promise<Order[]> {
     return Array.from(this.orders.values())
       .filter(order => order.userId === userId)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
   async getOrder(id: number): Promise<Order | undefined> {
@@ -327,14 +331,14 @@ export class MemStorage implements IStorage {
       .filter(item => item.orderId === id)
       .map(item => {
         const product = this.products.get(item.productId);
-        if (!product) throw new Error(`Produto ${item.productId} não encontrado`);
-        return { ...item, product };
+        return { ...item, product: product! };
       });
     
     return { order, items };
   }
 
   async createOrder(orderData: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
+    // Criar o pedido
     const id = this.currentOrderId++;
     const now = new Date();
     const order: Order = { 
@@ -343,10 +347,9 @@ export class MemStorage implements IStorage {
       createdAt: now,
       updatedAt: now
     };
-    
     this.orders.set(id, order);
     
-    // Criar itens do pedido
+    // Criar os itens do pedido
     for (const item of items) {
       const itemId = this.currentOrderItemId++;
       const orderItem: OrderItem = {
@@ -354,7 +357,6 @@ export class MemStorage implements IStorage {
         id: itemId,
         orderId: id
       };
-      
       this.orderItems.set(itemId, orderItem);
     }
     
@@ -365,14 +367,13 @@ export class MemStorage implements IStorage {
     const order = this.orders.get(id);
     if (!order) return undefined;
     
-    const now = new Date();
     const updatedOrder: Order = { 
       ...order, 
       status: status as any,
-      updatedAt: now
+      updatedAt: new Date() 
     };
-    
     this.orders.set(id, updatedOrder);
+    
     return updatedOrder;
   }
   
@@ -393,12 +394,7 @@ export class MemStorage implements IStorage {
   async createPayment(paymentData: InsertPayment): Promise<Payment> {
     const id = this.currentPaymentId++;
     const now = new Date();
-    const payment: Payment = { 
-      ...paymentData, 
-      id, 
-      createdAt: now
-    };
-    
+    const payment: Payment = { ...paymentData, id, createdAt: now };
     this.payments.set(id, payment);
     return payment;
   }
@@ -412,296 +408,25 @@ export class MemStorage implements IStorage {
     return updatedPayment;
   }
   
-  // Estatísticas para Dashboard
+  // Dashboard
   async getDashboardStats(): Promise<{
     totalOrders: number;
     totalSales: number;
     pendingOrders: number;
     productCount: number;
   }> {
-    const allOrders = Array.from(this.orders.values());
-    const totalOrders = allOrders.length;
-    
-    const totalSales = allOrders.reduce((sum, order) => sum + order.total, 0);
-    
-    const pendingOrders = allOrders.filter(
-      order => ['pendente', 'confirmado', 'preparo', 'entrega'].includes(order.status)
-    ).length;
-    
-    const productCount = this.products.size;
+    const orders = Array.from(this.orders.values());
     
     return {
-      totalOrders,
-      totalSales,
-      pendingOrders,
-      productCount
+      totalOrders: orders.length,
+      totalSales: orders.reduce((sum, order) => sum + order.total, 0),
+      pendingOrders: orders.filter(order => 
+        ['pendente', 'confirmado', 'preparo'].includes(order.status)
+      ).length,
+      productCount: this.products.size
     };
   }
 }
 
-import { db } from "./db";
-import { eq, desc, inArray, sql } from "drizzle-orm";
-import { users, categories, products, orders, orderItems, payments } from "@shared/schema";
-
-// Implementação com banco de dados PostgreSQL
-export class DatabaseStorage implements IStorage {
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
-
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user || undefined;
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(insertUser)
-      .returning();
-    return user;
-  }
-
-  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
-    const [user] = await db
-      .update(users)
-      .set(userData)
-      .where(eq(users.id, id))
-      .returning();
-    return user;
-  }
-
-  async getCategories(): Promise<Category[]> {
-    return await db.select().from(categories);
-  }
-
-  async getCategory(id: number): Promise<Category | undefined> {
-    const [category] = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, id));
-    return category;
-  }
-
-  async createCategory(insertCategory: InsertCategory): Promise<Category> {
-    const [category] = await db
-      .insert(categories)
-      .values(insertCategory)
-      .returning();
-    return category;
-  }
-
-  async updateCategory(id: number, categoryData: Partial<InsertCategory>): Promise<Category | undefined> {
-    const [category] = await db
-      .update(categories)
-      .set(categoryData)
-      .where(eq(categories.id, id))
-      .returning();
-    return category;
-  }
-
-  async deleteCategory(id: number): Promise<boolean> {
-    const result = await db
-      .delete(categories)
-      .where(eq(categories.id, id));
-    return true; // Drizzle não retorna o número de linhas afetadas por padrão
-  }
-
-  async getProducts(): Promise<Product[]> {
-    return await db.select().from(products);
-  }
-
-  async getProductsByCategory(categoryId: number): Promise<Product[]> {
-    return await db
-      .select()
-      .from(products)
-      .where(eq(products.categoryId, categoryId));
-  }
-
-  async getFeaturedProducts(): Promise<Product[]> {
-    return await db
-      .select()
-      .from(products)
-      .where(eq(products.isFeatured, true));
-  }
-
-  async getPromotionProducts(): Promise<Product[]> {
-    return await db
-      .select()
-      .from(products)
-      .where(eq(products.isPromotion, true));
-  }
-
-  async getProduct(id: number): Promise<Product | undefined> {
-    const [product] = await db
-      .select()
-      .from(products)
-      .where(eq(products.id, id));
-    return product;
-  }
-
-  async createProduct(insertProduct: InsertProduct): Promise<Product> {
-    const [product] = await db
-      .insert(products)
-      .values(insertProduct)
-      .returning();
-    return product;
-  }
-
-  async updateProduct(id: number, productData: Partial<InsertProduct>): Promise<Product | undefined> {
-    const [product] = await db
-      .update(products)
-      .set(productData)
-      .where(eq(products.id, id))
-      .returning();
-    return product;
-  }
-
-  async deleteProduct(id: number): Promise<boolean> {
-    await db
-      .delete(products)
-      .where(eq(products.id, id));
-    return true;
-  }
-
-  async getOrders(): Promise<Order[]> {
-    return await db
-      .select()
-      .from(orders)
-      .orderBy(desc(orders.createdAt));
-  }
-
-  async getOrdersByUser(userId: number): Promise<Order[]> {
-    return await db
-      .select()
-      .from(orders)
-      .where(eq(orders.userId, userId))
-      .orderBy(desc(orders.createdAt));
-  }
-
-  async getOrder(id: number): Promise<Order | undefined> {
-    const [order] = await db
-      .select()
-      .from(orders)
-      .where(eq(orders.id, id));
-    return order;
-  }
-
-  async getOrderWithItems(id: number): Promise<{order: Order, items: (OrderItem & {product: Product})[]} | undefined> {
-    const order = await this.getOrder(id);
-    if (!order) return undefined;
-    
-    const items = await db
-      .select()
-      .from(orderItems)
-      .leftJoin(products, eq(orderItems.productId, products.id))
-      .where(eq(orderItems.orderId, id));
-    
-    const formattedItems = items.map(({ order_items, products }) => ({
-      ...order_items,
-      product: products
-    })) as (OrderItem & {product: Product})[];
-    
-    return { order, items: formattedItems };
-  }
-
-  async createOrder(orderData: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
-    // Usando uma transação para garantir que os itens só sejam inseridos se o pedido for criado
-    const [order] = await db.transaction(async (tx) => {
-      const [newOrder] = await tx
-        .insert(orders)
-        .values(orderData)
-        .returning();
-      
-      // Adicionar o orderId aos itens
-      const orderItems = items.map(item => ({
-        ...item,
-        orderId: newOrder.id
-      }));
-      
-      await tx
-        .insert(orderItems)
-        .values(orderItems);
-      
-      return [newOrder];
-    });
-    
-    return order;
-  }
-
-  async updateOrderStatus(id: number, status: string): Promise<Order | undefined> {
-    const [order] = await db
-      .update(orders)
-      .set({ 
-        status: status as any,
-        updatedAt: new Date()
-      })
-      .where(eq(orders.id, id))
-      .returning();
-    return order;
-  }
-
-  async getPayment(id: number): Promise<Payment | undefined> {
-    const [payment] = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.id, id));
-    return payment;
-  }
-
-  async getPaymentByOrder(orderId: number): Promise<Payment | undefined> {
-    const [payment] = await db
-      .select()
-      .from(payments)
-      .where(eq(payments.orderId, orderId));
-    return payment;
-  }
-
-  async createPayment(paymentData: InsertPayment): Promise<Payment> {
-    const [payment] = await db
-      .insert(payments)
-      .values(paymentData)
-      .returning();
-    return payment;
-  }
-
-  async updatePaymentStatus(id: number, status: string): Promise<Payment | undefined> {
-    const [payment] = await db
-      .update(payments)
-      .set({ status })
-      .where(eq(payments.id, id))
-      .returning();
-    return payment;
-  }
-
-  async getDashboardStats(): Promise<{
-    totalOrders: number;
-    totalSales: number;
-    pendingOrders: number;
-    productCount: number;
-  }> {
-    // Obter estatísticas do dashboard
-    const allOrders = await db.select().from(orders);
-    const pendingOrdersCount = await db
-      .select()
-      .from(orders)
-      .where(inArray(orders.status, ['pendente', 'confirmado', 'preparo', 'entrega']))
-      .then(orders => orders.length);
-    
-    const productCount = await db
-      .select({ count: sql`count(*)` })
-      .from(products)
-      .then(result => Number(result[0].count));
-    
-    return {
-      totalOrders: allOrders.length,
-      totalSales: allOrders.reduce((sum, order) => sum + order.total, 0),
-      pendingOrders: pendingOrdersCount,
-      productCount
-    };
-  }
-}
-
-// Usar a implementação com banco de dados
-export const storage = new DatabaseStorage();
+// Use apenas o MemStorage como implementação
+export const storage = new MemStorage();

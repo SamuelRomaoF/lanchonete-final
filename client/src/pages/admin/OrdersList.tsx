@@ -1,16 +1,8 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/context/AuthContext";
-import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
@@ -26,69 +18,51 @@ import {
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Order, OrderItem, Product } from "@shared/schema";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/AuthContext";
+import { OrderStatus, OrderTicket, useOrderQueue } from "@/context/OrderQueueContext";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 
-type OrderWithItems = {
-  order: Order;
-  items: (OrderItem & { product: Product })[];
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case "pendente":
-      return "bg-yellow-500";
-    case "confirmado":
-      return "bg-blue-500";
-    case "preparo":
-      return "bg-orange-500";
-    case "entrega":
-      return "bg-purple-500";
-    case "concluido":
-      return "bg-green-500";
-    case "cancelado":
-      return "bg-red-500";
-    default:
-      return "bg-gray-500";
-  }
-};
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case "pendente":
-      return "Pendente";
-    case "confirmado":
-      return "Confirmado";
-    case "preparo":
-      return "Em preparo";
-    case "entrega":
-      return "Em entrega";
-    case "concluido":
-      return "Concluído";
-    case "cancelado":
-      return "Cancelado";
-    default:
-      return status;
-  }
+const statusConfig: Record<OrderStatus, {color: string, text: string}> = {
+  recebido: { color: "bg-yellow-500", text: "Recebido" },
+  em_preparo: { color: "bg-orange-500", text: "Em preparo" },
+  pronto: { color: "bg-green-500", text: "Pronto" },
+  entregue: { color: "bg-gray-500", text: "Entregue" }
 };
 
 const OrdersList = () => {
   const { user } = useAuth();
   const [location, navigate] = useLocation();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [selectedTab, setSelectedTab] = useState("all");
-  const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
+  const [selectedTab, setSelectedTab] = useState<OrderStatus | "all">("all");
+  const [selectedOrder, setSelectedOrder] = useState<OrderTicket | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [newStatus, setNewStatus] = useState<string>("");
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const [newStatus, setNewStatus] = useState<OrderStatus>("recebido");
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const prevOrdersCountRef = useRef<number>(0);
+  
+  const { 
+    orders, 
+    updateOrderStatus, 
+    resetQueue, 
+    clearCompletedOrders,
+    getActiveOrders,
+    getTodayOrders,
+    syncWithServer,
+    setOrders
+  } = useOrderQueue();
   
   // Verificar se o usuário é administrador
   useEffect(() => {
@@ -97,104 +71,174 @@ const OrdersList = () => {
     }
   }, [user, navigate]);
   
-  // Buscar pedidos
-  const {
-    data: orders,
-    isLoading,
-    error,
-  } = useQuery<Order[]>({
-    queryKey: ['/api/orders'],
-    enabled: !!user && user.type === "admin",
-  });
-  
-  // Mutation para atualizar status do pedido
-  const updateOrderStatusMutation = useMutation({
-    mutationFn: ({ id, status }: { id: number; status: string }) => {
-      return apiRequest("PATCH", `/api/orders/${id}/status`, { status });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
-      toast({
-        title: "Status atualizado",
-        description: "Status do pedido atualizado com sucesso",
-      });
-      setSelectedOrder(null);
-      setIsDetailsOpen(false);
-    },
-    onError: (error) => {
-      console.error("Erro ao atualizar status:", error);
-      toast({
-        title: "Erro",
-        description: "Erro ao atualizar status do pedido",
-        variant: "destructive",
-      });
-    },
-  });
-  
-  // Função para buscar detalhes do pedido
-  const fetchOrderDetails = async (orderId: number) => {
-    const response = await fetch(`/api/orders/${orderId}`, {
-      credentials: "include",
-    });
+  // Efeito para tocar som quando chegar um novo pedido
+  useEffect(() => {
+    const activeOrders = orders.filter(o => o.status === "recebido");
     
-    if (!response.ok) {
-      throw new Error("Falha ao buscar detalhes do pedido");
+    if (soundEnabled && activeOrders.length > prevOrdersCountRef.current) {
+      if (audioRef.current) {
+        audioRef.current.play().catch(e => console.error("Erro ao tocar som:", e));
+      }
     }
     
-    return await response.json();
-  };
-  
+    prevOrdersCountRef.current = activeOrders.length;
+  }, [orders, soundEnabled]);
+
   // Função para mostrar detalhes do pedido
-  const handleViewDetails = async (orderId: number) => {
-    try {
-      const orderDetails = await fetchOrderDetails(orderId);
-      setSelectedOrder(orderDetails);
-      setNewStatus(orderDetails.order.status);
-      setIsDetailsOpen(true);
-    } catch (error) {
-      console.error("Erro ao buscar detalhes do pedido:", error);
-      toast({
-        title: "Erro",
-        description: "Não foi possível carregar os detalhes do pedido",
-        variant: "destructive",
-      });
-    }
+  const handleViewDetails = (order: OrderTicket) => {
+    setSelectedOrder(order);
+    setNewStatus(order.status);
+    setIsDetailsOpen(true);
   };
   
   // Atualizar status do pedido
-  const handleUpdateStatus = () => {
+  const handleUpdateStatus = async () => {
     if (selectedOrder && newStatus) {
-      updateOrderStatusMutation.mutate({
-        id: selectedOrder.order.id,
-        status: newStatus,
-      });
+      try {
+        console.log(`Atualizando pedido ${selectedOrder.id} para status: ${newStatus}`);
+        
+        // Atualizar o status localmente
+        updateOrderStatus(selectedOrder.id, newStatus);
+        setIsDetailsOpen(false);
+        
+        // Forçar sincronização com o servidor
+        await syncWithServer();
+        
+        toast({
+          title: "Status atualizado",
+          description: `Pedido ${selectedOrder.ticket} atualizado para ${statusConfig[newStatus].text}`,
+        });
+        
+        console.log("Atualização de status concluída e sincronizada com o servidor");
+      } catch (error) {
+        console.error("Erro ao atualizar status:", error);
+        
+        toast({
+          title: "Erro na atualização",
+          description: "Não foi possível atualizar o status do pedido",
+          variant: "destructive",
+        });
+      }
     }
   };
   
   // Filtrar pedidos por status
   const getFilteredOrders = () => {
-    if (!orders) return [];
-    
     if (selectedTab === "all") {
-      return orders;
+      return getTodayOrders();
     }
     
     return orders.filter(order => order.status === selectedTab);
   };
   
   // Formatação da data
-  const formatDate = (dateString: Date) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
+  const formatDate = (date: Date) => {
+    return date.toLocaleTimeString('pt-BR', {
       hour: '2-digit',
       minute: '2-digit'
     });
   };
   
   const filteredOrders = getFilteredOrders();
+  const activeOrdersCount = orders.filter(o => o.status === "recebido").length;
+  const pendingOrdersCount = orders.filter(o => o.status !== "entregue").length;
+  
+  const handleResetQueue = () => {
+    resetQueue();
+    setConfirmResetOpen(false);
+    
+    toast({
+      title: "Sistema reiniciado",
+      description: "Sistema de senhas foi reiniciado com sucesso",
+    });
+  };
+  
+  const handleClearCompleted = () => {
+    clearCompletedOrders();
+    
+    toast({
+      title: "Pedidos limpos",
+      description: "Pedidos concluídos foram removidos",
+    });
+  };
+  
+  // Atualizar periodicamente para verificar novos pedidos
+  useEffect(() => {
+    // Função para forçar uma atualização dos pedidos
+    const forceRefresh = async () => {
+      try {
+        console.log("Forçando atualização de pedidos do servidor...");
+        
+        // Buscar dados diretamente do servidor
+        const response = await fetch('/api/queue');
+        if (!response.ok) {
+          throw new Error('Erro ao buscar pedidos do servidor');
+        }
+        
+        const serverData = await response.json();
+        console.log("Dados recebidos do servidor:", serverData);
+        
+        // Se houver pedidos no servidor, atualizar localmente
+        if (serverData.orders && Array.isArray(serverData.orders)) {
+          // Converter as datas para objetos Date
+          const processedOrders = serverData.orders.map((order: any) => ({
+            ...order,
+            createdAt: new Date(order.createdAt)
+          }));
+          
+          // Atualizar os pedidos localmente
+          console.log("Atualizando pedidos com dados do servidor:", processedOrders);
+          
+          // Atualizar o estado local com os pedidos do servidor
+          if (processedOrders.length > 0) {
+            setOrders(processedOrders);
+          }
+        }
+      } catch (error) {
+        console.error("Erro ao forçar atualização de pedidos:", error);
+      }
+    };
+    
+    // Executar imediatamente ao carregar o componente
+    forceRefresh();
+    
+    // Configurar intervalo para atualização a cada 5 segundos
+    const intervalId = setInterval(() => {
+      forceRefresh();
+    }, 5000);
+    
+    // Limpar o intervalo ao desmontar
+    return () => clearInterval(intervalId);
+  }, []); // Sem dependências para evitar recriação do efeito
+  
+  // Função de sincronização manual
+  const manualSync = async () => {
+    try {
+      toast({
+        title: "Atualizando...",
+        description: "Buscando novos pedidos do servidor",
+      });
+      
+      await syncWithServer();
+      
+      toast({
+        title: "Dados atualizados",
+        description: "Os pedidos foram sincronizados com o servidor",
+      });
+    } catch (error) {
+      console.error("Erro na sincronização manual:", error);
+      toast({
+        title: "Erro na atualização",
+        description: "Não foi possível sincronizar com o servidor",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Log para depuração
+  useEffect(() => {
+    console.log("Pedidos no dashboard:", orders);
+  }, [orders]);
   
   if (!user || user.type !== "admin") {
     return (
@@ -207,73 +251,147 @@ const OrdersList = () => {
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-6">Gerenciamento de Pedidos</h1>
+      {/* Audio para notificação */}
+      <audio ref={audioRef} preload="auto">
+        <source src="https://cdn.pixabay.com/download/audio/2021/08/04/audio_0625c1539c.mp3?filename=notification-sound-7062.mp3" type="audio/mp3" />
+      </audio>
       
-      <Tabs 
-        defaultValue="all" 
-        value={selectedTab} 
-        onValueChange={setSelectedTab}
-        className="mb-6"
-      >
-        <TabsList className="grid grid-cols-4 md:grid-cols-7 mb-4">
-          <TabsTrigger value="all">Todos</TabsTrigger>
-          <TabsTrigger value="pendente">Pendentes</TabsTrigger>
-          <TabsTrigger value="confirmado">Confirmados</TabsTrigger>
-          <TabsTrigger value="preparo">Em Preparo</TabsTrigger>
-          <TabsTrigger value="entrega">Em Entrega</TabsTrigger>
-          <TabsTrigger value="concluido">Concluídos</TabsTrigger>
-          <TabsTrigger value="cancelado">Cancelados</TabsTrigger>
-        </TabsList>
-      </Tabs>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Gerenciamento de Senhas</h1>
+        
+        <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2">
+            <Switch 
+              checked={soundEnabled}
+              onCheckedChange={setSoundEnabled}
+              id="sound-toggle"
+            />
+            <label htmlFor="sound-toggle" className="text-sm">
+              Som de notificação
+            </label>
+          </div>
+          
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={manualSync}
+          >
+            <i className="ri-refresh-line mr-1"></i> Atualizar
+          </Button>
+        </div>
+      </div>
       
-      {isLoading ? (
-        <div className="text-center py-8">
-          <div className="spinner h-8 w-8 mx-auto mb-4 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <p>Carregando pedidos...</p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="text-lg flex justify-between">
+              <span>Senhas Novas</span>
+              <Badge variant="outline" className="bg-yellow-100">{activeOrdersCount}</Badge>
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="text-lg flex justify-between">
+              <span>Senhas Pendentes</span>
+              <Badge variant="outline" className="bg-blue-100">{pendingOrdersCount}</Badge>
+            </CardTitle>
+          </CardHeader>
+        </Card>
+        
+        <Card>
+          <CardHeader className="py-4">
+            <CardTitle className="text-lg flex justify-between">
+              <span>Total Hoje</span>
+              <Badge variant="outline" className="bg-gray-100">{getTodayOrders().length}</Badge>
+            </CardTitle>
+          </CardHeader>
+        </Card>
+      </div>
+      
+      <div className="flex justify-between items-center mb-4">
+        <Tabs 
+          defaultValue="all" 
+          value={selectedTab} 
+          onValueChange={(value) => setSelectedTab(value as OrderStatus | "all")}
+          className="flex-grow"
+        >
+          <TabsList className="grid grid-cols-5">
+            <TabsTrigger value="all">Todas</TabsTrigger>
+            <TabsTrigger value="recebido">Recebido</TabsTrigger>
+            <TabsTrigger value="em_preparo">Em Preparo</TabsTrigger>
+            <TabsTrigger value="pronto">Pronto</TabsTrigger>
+            <TabsTrigger value="entregue">Entregue</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        <div className="flex space-x-2 ml-4">
+          <Button 
+            variant="outline" 
+            onClick={() => setConfirmResetOpen(true)}
+            className="text-sm"
+          >
+            Reiniciar Senhas
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={handleClearCompleted}
+            className="text-sm"
+          >
+            Limpar Concluídos
+          </Button>
         </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded mb-6">
-          <p>Erro ao carregar pedidos. Por favor, tente novamente mais tarde.</p>
-        </div>
-      ) : filteredOrders.length === 0 ? (
+      </div>
+      
+      {filteredOrders.length === 0 ? (
         <div className="text-center py-12 bg-neutral-lightest rounded-lg">
-          <h3 className="text-lg font-medium mb-2">Nenhum pedido encontrado</h3>
+          <h3 className="text-lg font-medium mb-2">Nenhuma senha encontrada</h3>
           <p className="text-neutral">
             {selectedTab === "all" 
-              ? "Não há pedidos registrados"
-              : `Não há pedidos com status "${getStatusText(selectedTab)}"`}
+              ? "Não há senhas registradas hoje"
+              : `Não há senhas com status "${statusConfig[selectedTab as OrderStatus].text}"`}
           </p>
         </div>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredOrders.map((order) => (
-            <Card key={order.id} className="hover:shadow-md transition-shadow">
+            <Card key={order.id} className={`hover:shadow-md transition-shadow border-l-4 ${statusConfig[order.status].color}`}>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-center">
-                  <CardTitle className="text-lg">Pedido #{order.id}</CardTitle>
-                  <Badge className={`${getStatusColor(order.status)}`}>
-                    {getStatusText(order.status)}
+                  <CardTitle className="text-2xl font-bold">{order.ticket}</CardTitle>
+                  <Badge className={`${statusConfig[order.status].color} text-white`}>
+                    {statusConfig[order.status].text}
                   </Badge>
                 </div>
-                <CardDescription>
-                  {formatDate(order.createdAt)}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="pb-2">
                 <p className="text-sm text-neutral-dark">
-                  <span className="font-medium">Cliente:</span> {order.userId}
+                  {order.customerName || "Cliente"} • {formatDate(order.createdAt)}
                 </p>
-                <p className="text-sm text-neutral-dark mt-1">
-                  <span className="font-medium">Endereço:</span> {order.address}
-                </p>
+              </CardHeader>
+              
+              <CardContent className="py-2">
+                <ul className="space-y-1 text-sm">
+                  {order.items.slice(0, 3).map((item) => (
+                    <li key={item.id} className="flex justify-between">
+                      <span>{item.quantity}× {item.name}</span>
+                      <span>{formatCurrency(item.price * item.quantity)}</span>
+                    </li>
+                  ))}
+                  {order.items.length > 3 && (
+                    <li className="text-neutral text-xs">
+                      + {order.items.length - 3} outros itens
+                    </li>
+                  )}
+                </ul>
               </CardContent>
-              <CardFooter className="flex justify-between">
-                <p className="font-semibold">{formatCurrency(order.total)}</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleViewDetails(order.id)}
-                >
-                  Ver Detalhes
+              
+              <CardFooter className="pt-2 flex justify-between items-center">
+                <div className="text-lg font-semibold">
+                  {formatCurrency(order.total)}
+                </div>
+                <Button size="sm" onClick={() => handleViewDetails(order)}>
+                  Detalhes
                 </Button>
               </CardFooter>
             </Card>
@@ -282,113 +400,90 @@ const OrdersList = () => {
       )}
       
       {/* Modal de detalhes do pedido */}
-      <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Detalhes do Pedido #{selectedOrder?.order.id}</DialogTitle>
-            <DialogDescription>
-              {selectedOrder && formatDate(selectedOrder.order.createdAt)}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {selectedOrder && (
+      {selectedOrder && (
+        <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex justify-between items-center">
+                <span>Senha {selectedOrder.ticket}</span>
+                <Badge className={`${statusConfig[selectedOrder.status].color} text-white`}>
+                  {statusConfig[selectedOrder.status].text}
+                </Badge>
+              </DialogTitle>
+              <DialogDescription>
+                {selectedOrder.customerName || "Cliente"} • {formatDate(selectedOrder.createdAt)}
+              </DialogDescription>
+            </DialogHeader>
+            
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h4 className="font-medium mb-1">Status</h4>
-                  <Badge className={`${getStatusColor(selectedOrder.order.status)}`}>
-                    {getStatusText(selectedOrder.order.status)}
-                  </Badge>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Select
-                    value={newStatus}
-                    onValueChange={setNewStatus}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Alterar status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectGroup>
-                        <SelectLabel>Status do Pedido</SelectLabel>
-                        <SelectItem value="pendente">Pendente</SelectItem>
-                        <SelectItem value="confirmado">Confirmado</SelectItem>
-                        <SelectItem value="preparo">Em Preparo</SelectItem>
-                        <SelectItem value="entrega">Em Entrega</SelectItem>
-                        <SelectItem value="concluido">Concluído</SelectItem>
-                        <SelectItem value="cancelado">Cancelado</SelectItem>
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <Button 
-                    variant="outline"
-                    size="sm"
-                    onClick={handleUpdateStatus}
-                    disabled={newStatus === selectedOrder.order.status || updateOrderStatusMutation.isPending}
-                  >
-                    {updateOrderStatusMutation.isPending ? "Atualizando..." : "Atualizar"}
-                  </Button>
-                </div>
-              </div>
-              
               <div>
-                <h4 className="font-medium mb-2">Cliente</h4>
-                <p className="text-sm">ID: {selectedOrder.order.userId}</p>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-2">Endereço de entrega</h4>
-                <p className="text-sm">{selectedOrder.order.address}</p>
-              </div>
-              
-              <div>
-                <h4 className="font-medium mb-2">Itens do pedido</h4>
-                <div className="space-y-2">
+                <h4 className="text-sm font-medium mb-2">Itens do pedido</h4>
+                <ul className="space-y-2">
                   {selectedOrder.items.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center py-2 border-b">
-                      <div className="flex items-center">
-                        {item.product.imageUrl && (
-                          <img 
-                            src={item.product.imageUrl} 
-                            alt={item.product.name} 
-                            className="w-12 h-12 object-cover rounded mr-3"
-                          />
-                        )}
-                        <div>
-                          <p className="font-medium">{item.product.name}</p>
-                          <p className="text-sm text-neutral">
-                            {item.quantity} x {formatCurrency(item.price)}
-                          </p>
-                        </div>
-                      </div>
-                      <p className="font-medium">{formatCurrency(item.subtotal)}</p>
-                    </div>
+                    <li key={item.id} className="flex justify-between text-sm">
+                      <span>
+                        {item.quantity}× {item.name}
+                        {item.notes && <p className="text-xs text-neutral">{item.notes}</p>}
+                      </span>
+                      <span>{formatCurrency(item.price * item.quantity)}</span>
+                    </li>
                   ))}
-                </div>
-              </div>
-              
-              <div className="pt-2 border-t">
-                <div className="flex justify-between mb-1">
-                  <span>Subtotal</span>
-                  <span>{formatCurrency(selectedOrder.order.total - 5)}</span>
-                </div>
-                <div className="flex justify-between mb-1">
-                  <span>Taxa de entrega</span>
-                  <span>{formatCurrency(5)}</span>
-                </div>
-                <div className="flex justify-between font-bold text-lg">
-                  <span>Total</span>
-                  <span>{formatCurrency(selectedOrder.order.total)}</span>
-                </div>
+                </ul>
               </div>
               
               <Separator />
               
-              <DialogFooter>
-                <Button onClick={() => setIsDetailsOpen(false)}>Fechar</Button>
-              </DialogFooter>
+              <div className="flex justify-between font-medium">
+                <span>Total</span>
+                <span>{formatCurrency(selectedOrder.total)}</span>
+              </div>
+              
+              <div>
+                <h4 className="text-sm font-medium mb-2">Atualizar status</h4>
+                <Select value={newStatus} onValueChange={(value) => setNewStatus(value as OrderStatus)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o novo status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recebido">Recebido</SelectItem>
+                    <SelectItem value="em_preparo">Em Preparo</SelectItem>
+                    <SelectItem value="pronto">Pronto</SelectItem>
+                    <SelectItem value="entregue">Entregue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          )}
+            
+            <DialogFooter className="sm:justify-between">
+              <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateStatus}>
+                Atualizar Status
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+      
+      {/* Modal de confirmação de reset */}
+      <Dialog open={confirmResetOpen} onOpenChange={setConfirmResetOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reiniciar sistema de senhas?</DialogTitle>
+            <DialogDescription>
+              Essa ação irá reiniciar o contador de senhas para A01 e limpar todos os pedidos. Esta ação não pode ser desfeita.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <DialogFooter className="sm:justify-between">
+            <Button variant="outline" onClick={() => setConfirmResetOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleResetQueue}>
+              Sim, reiniciar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

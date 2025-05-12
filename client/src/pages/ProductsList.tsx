@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useParams } from "wouter";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import ProductCard from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import ProductCard from "@/components/ProductCard";
-import { Product, Category } from "@shared/schema";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Category, Product } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useParams } from "wouter";
 
 const ProductsList = () => {
   const { categoria } = useParams();
@@ -29,10 +29,13 @@ const ProductsList = () => {
       : ['/api/products'],
   });
   
-  // Filtrar produtos por busca
+  // Filtrar produtos por busca e disponibilidade
   const filteredProducts = products?.filter((product) =>
-    product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()))
+    // Filtrar pela busca
+    (product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (product.description && product.description.toLowerCase().includes(searchQuery.toLowerCase()))) &&
+    // Apenas produtos disponíveis
+    product.available === true
   );
   
   // Função para determinar a categoria ativa
