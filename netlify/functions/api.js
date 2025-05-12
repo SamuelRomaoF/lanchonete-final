@@ -18,10 +18,11 @@ function extractAndValidateId(path) {
   const result = {
     idStr,
     id,
-    isValid: !isNaN(id)
+    isValid: !isNaN(id) // ID 0 é válido, então usamos !isNaN em vez de verificar se é truthy
   };
   
   console.log(`Extraindo ID da rota ${path}: ${JSON.stringify(result)}`);
+  console.log(`ID extraído: ${id} (tipo: ${typeof id}), isValid: ${result.isValid}, string original: '${idStr}'`);
   
   return result;
 }
@@ -987,24 +988,43 @@ exports.handler = async (event, context) => {
         const productIds = products.map(p => p.id);
         console.log('IDs de produtos existentes:', productIds);
         
-        // Verificar se o produto existe
-        const productIndex = products.findIndex(p => {
-          // Comparar como string para garantir
-          return String(p.id) === String(productId);
-        });
-        
-        if (productIndex === -1) {
-          console.log(`ERRO: Produto com ID ${productId} não encontrado`);
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ error: 'Produto não encontrado' })
-          };
+        // CORREÇÃO: Tratamento especial para ID 0
+        if (productId === 0) {
+          console.log('ID 0 detectado - tratamento especial');
+          // Verificar explicitamente se existe produto com ID 0
+          const zeroIndex = products.findIndex(p => p.id === 0 || p.id === '0');
+          
+          if (zeroIndex === -1) {
+            console.log('Produto com ID 0 não encontrado');
+            return {
+              statusCode: 404,
+              headers,
+              body: JSON.stringify({ error: 'Produto não encontrado' })
+            };
+          }
+          
+          console.log(`Produto com ID 0 encontrado na posição ${zeroIndex}`);
+          products.splice(zeroIndex, 1);
+        } else {
+          // Verificar se o produto com ID diferente de 0 existe
+          const productIndex = products.findIndex(p => {
+            // Comparar como string para garantir
+            return String(p.id) === String(productId);
+          });
+          
+          if (productIndex === -1) {
+            console.log(`ERRO: Produto com ID ${productId} não encontrado`);
+            return {
+              statusCode: 404,
+              headers,
+              body: JSON.stringify({ error: 'Produto não encontrado' })
+            };
+          }
+          
+          // Remover produto da lista
+          console.log(`Removendo produto na posição ${productIndex} com ID ${productId}`);
+          products.splice(productIndex, 1); // Remover diretamente pelo índice
         }
-        
-        // Remover produto da lista
-        console.log(`Removendo produto na posição ${productIndex} com ID ${productId}`);
-        products.splice(productIndex, 1); // Remover diretamente pelo índice
         
         console.log(`Nova lista contém ${products.length} produtos`);
         
@@ -1026,24 +1046,42 @@ exports.handler = async (event, context) => {
         // Lista de destaque
         let featuredProducts = await fetchFromBin(BINS.featured);
         if (Array.isArray(featuredProducts)) {
-          const featuredIndex = featuredProducts.findIndex(p => String(p.id) === String(productId));
-          
-          if (featuredIndex !== -1) {
-            console.log('Removendo produto da lista de destaques');
-            featuredProducts.splice(featuredIndex, 1);
-            await recreateBin(BINS.featured, featuredProducts);
+          // CORREÇÃO: Tratamento especial para ID 0 na lista de destaques
+          if (productId === 0) {
+            const featuredIndex = featuredProducts.findIndex(p => p.id === 0 || p.id === '0');
+            if (featuredIndex !== -1) {
+              console.log('Removendo produto ID 0 da lista de destaques');
+              featuredProducts.splice(featuredIndex, 1);
+              await recreateBin(BINS.featured, featuredProducts);
+            }
+          } else {
+            const featuredIndex = featuredProducts.findIndex(p => String(p.id) === String(productId));
+            if (featuredIndex !== -1) {
+              console.log('Removendo produto da lista de destaques');
+              featuredProducts.splice(featuredIndex, 1);
+              await recreateBin(BINS.featured, featuredProducts);
+            }
           }
         }
         
         // Lista de promoções
         let promotionProducts = await fetchFromBin(BINS.promotions);
         if (Array.isArray(promotionProducts)) {
-          const promotionIndex = promotionProducts.findIndex(p => String(p.id) === String(productId));
-          
-          if (promotionIndex !== -1) {
-            console.log('Removendo produto da lista de promoções');
-            promotionProducts.splice(promotionIndex, 1);
-            await recreateBin(BINS.promotions, promotionProducts);
+          // CORREÇÃO: Tratamento especial para ID 0 na lista de promoções
+          if (productId === 0) {
+            const promotionIndex = promotionProducts.findIndex(p => p.id === 0 || p.id === '0');
+            if (promotionIndex !== -1) {
+              console.log('Removendo produto ID 0 da lista de promoções');
+              promotionProducts.splice(promotionIndex, 1);
+              await recreateBin(BINS.promotions, promotionProducts);
+            }
+          } else {
+            const promotionIndex = promotionProducts.findIndex(p => String(p.id) === String(productId));
+            if (promotionIndex !== -1) {
+              console.log('Removendo produto da lista de promoções');
+              promotionProducts.splice(promotionIndex, 1);
+              await recreateBin(BINS.promotions, promotionProducts);
+            }
           }
         }
         
@@ -1106,24 +1144,43 @@ exports.handler = async (event, context) => {
         const categoryIds = categories.map(c => c.id);
         console.log('IDs de categorias existentes:', categoryIds);
         
-        // Verificar se a categoria existe
-        const categoryIndex = categories.findIndex(c => {
-          // Comparar como string para garantir
-          return String(c.id) === String(categoryId);
-        });
-        
-        if (categoryIndex === -1) {
-          console.log(`ERRO: Categoria com ID ${categoryId} não encontrada`);
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ error: 'Categoria não encontrada' })
-          };
+        // CORREÇÃO: Tratamento especial para ID 0
+        if (categoryId === 0) {
+          console.log('ID 0 detectado - tratamento especial para categoria');
+          // Verificar explicitamente se existe categoria com ID 0
+          const zeroIndex = categories.findIndex(c => c.id === 0 || c.id === '0');
+          
+          if (zeroIndex === -1) {
+            console.log('Categoria com ID 0 não encontrada');
+            return {
+              statusCode: 404,
+              headers,
+              body: JSON.stringify({ error: 'Categoria não encontrada' })
+            };
+          }
+          
+          console.log(`Categoria com ID 0 encontrada na posição ${zeroIndex}`);
+          categories.splice(zeroIndex, 1);
+        } else {
+          // Verificar se a categoria com ID diferente de 0 existe
+          const categoryIndex = categories.findIndex(c => {
+            // Comparar como string para garantir
+            return String(c.id) === String(categoryId);
+          });
+          
+          if (categoryIndex === -1) {
+            console.log(`ERRO: Categoria com ID ${categoryId} não encontrada`);
+            return {
+              statusCode: 404,
+              headers,
+              body: JSON.stringify({ error: 'Categoria não encontrada' })
+            };
+          }
+          
+          // Remover categoria da lista
+          console.log(`Removendo categoria na posição ${categoryIndex} com ID ${categoryId}`);
+          categories.splice(categoryIndex, 1); // Remover diretamente pelo índice
         }
-        
-        // Remover categoria da lista
-        console.log(`Removendo categoria na posição ${categoryIndex} com ID ${categoryId}`);
-        categories.splice(categoryIndex, 1); // Remover diretamente pelo índice
         
         console.log(`Nova lista contém ${categories.length} categorias`);
         
