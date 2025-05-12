@@ -5,9 +5,9 @@
   "license": "MIT",
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx server/index.ts",
-    "build": "npm run build:client && npm run build:functions",
+    "build": "npm run build:client",
     "build:client": "vite build",
-    "build:functions": "tsc netlify/functions/api.ts --outDir netlify/functions-dist --esModuleInterop --skipLibCheck --target ES2019",
+    "build:functions": "echo 'Pulando compilação de funções, usando arquivos JS diretamente'",
     "start": "cross-env NODE_ENV=production node dist/index.js",
     "check": "tsc"
   },
