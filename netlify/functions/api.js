@@ -75,12 +75,22 @@ async function initializeUsersBin() {
       return;
     }
 
+    console.log('Inicializando bin de usuários...');
+    console.log('ID do bin de usuários:', BINS.users);
+
     // Tenta buscar os usuários
-    let users = await fetchFromBin(BINS.users);
+    let users;
+    try {
+      users = await fetchFromBin(BINS.users);
+      console.log('Usuários encontrados no bin:', users);
+    } catch (error) {
+      console.error('Erro ao buscar usuários:', error);
+      return;
+    }
     
     // Se não existem usuários ainda, cria o usuário admin
     if (!users || users.length === 0) {
-      console.log('Criando usuário admin inicial...');
+      console.log('Nenhum usuário encontrado. Criando usuário admin inicial...');
       
       const adminUser = {
         id: 1,
@@ -93,8 +103,50 @@ async function initializeUsersBin() {
       };
       
       users = [adminUser];
-      await updateBin(BINS.users, users);
-      console.log('Usuário admin criado com sucesso!');
+      
+      try {
+        const success = await updateBin(BINS.users, users);
+        if (success) {
+          console.log('Usuário admin criado com sucesso!');
+        } else {
+          console.error('Falha ao criar usuário admin.');
+        }
+      } catch (error) {
+        console.error('Erro ao atualizar bin de usuários:', error);
+      }
+    } else {
+      console.log('Usuários já existem no bin. Verificando se existe usuário admin...');
+      
+      // Verificar se existe um usuário admin
+      const adminExists = users.some(user => user.type === 'admin');
+      
+      if (!adminExists) {
+        console.log('Nenhum usuário admin encontrado. Criando...');
+        
+        const adminUser = {
+          id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+          name: 'Administrador',
+          email: 'adm@lanchonete.com',
+          password: 'admin123',
+          type: 'admin',
+          createdAt: new Date().toISOString()
+        };
+        
+        users.push(adminUser);
+        
+        try {
+          const success = await updateBin(BINS.users, users);
+          if (success) {
+            console.log('Usuário admin criado com sucesso!');
+          } else {
+            console.error('Falha ao criar usuário admin.');
+          }
+        } catch (error) {
+          console.error('Erro ao atualizar bin de usuários:', error);
+        }
+      } else {
+        console.log('Usuário admin já existe.');
+      }
     }
   } catch (error) {
     console.error('Erro ao inicializar bin de usuários:', error);
@@ -110,6 +162,18 @@ function generateToken() {
 
 // Inicializar o bin de usuários quando a função é carregada
 initializeUsersBin();
+
+// Função para verificar se temos um valor JSON válido
+function isValidJSON(json) {
+  try {
+    if (typeof json === 'string') {
+      JSON.parse(json);
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
 
 exports.handler = async (event, context) => {
   // Enable CORS
@@ -168,9 +232,28 @@ exports.handler = async (event, context) => {
     // POST - Login de usuários
     if ((path === '/auth/login' || path === '/api/auth/login') && event.httpMethod === 'POST') {
       try {
-        const { email, password } = JSON.parse(event.body);
+        console.log('Requisição de login recebida');
+        
+        let requestData;
+        try {
+          requestData = JSON.parse(event.body);
+          console.log('Dados de requisição parseados com sucesso');
+        } catch (e) {
+          console.error('Erro ao parsear corpo da requisição:', e);
+          console.log('Corpo bruto da requisição:', event.body);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'Formato de dados inválido' })
+          };
+        }
+        
+        const { email, password } = requestData;
+        
+        console.log('Dados de login recebidos:', { email, password: '***' });
         
         if (!email || !password) {
+          console.log('Email ou senha ausentes');
           return {
             statusCode: 400,
             headers,
@@ -178,10 +261,14 @@ exports.handler = async (event, context) => {
           };
         }
         
-        console.log(`Tentativa de login para: ${email}`);
+        console.log('Buscando usuário com email:', email);
+        
+        // Buscar usuários
+        const users = await fetchFromBin(BINS.users);
+        console.log('Usuários encontrados:', users);
         
         // Buscar usuário pelo email
-        const user = await getUserByEmail(email);
+        const user = users.find(u => u.email === email);
         
         if (!user) {
           console.log(`Usuário não encontrado: ${email}`);
@@ -193,7 +280,7 @@ exports.handler = async (event, context) => {
         }
         
         console.log(`Usuário encontrado: ${user.email}, tipo: ${user.type}`);
-        console.log(`Senha fornecida: ${password}, senha armazenada: ${user.password}`);
+        console.log(`Verificando senha para: ${email}`);
         
         // Para simplificar, estamos fazendo uma comparação direta aqui
         // Em um ambiente real, você usaria bcrypt ou similar
@@ -206,6 +293,8 @@ exports.handler = async (event, context) => {
           };
         }
         
+        console.log('Senha correta, gerando token de sessão');
+        
         // Remover a senha antes de armazenar na sessão
         const { password: _, ...userWithoutPassword } = user;
         
@@ -213,7 +302,7 @@ exports.handler = async (event, context) => {
         const token = generateToken();
         activeSessions.set(token, userWithoutPassword);
         
-        console.log(`Login bem-sucedido para: ${user.email}, tipo: ${user.type}`);
+        console.log(`Login bem-sucedido para: ${user.email}, tipo: ${user.type}, token: ${token}`);
         
         // Retornar usuário e token
         return {
@@ -365,7 +454,9 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Implementação da rota de check-reset
     if ((path === '/queue/check-reset' || path === '/api/queue/check-reset') && event.httpMethod === 'GET') {
+      console.log('Processando requisição para check-reset');
       return {
         statusCode: 200,
         headers,
@@ -373,17 +464,21 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Implementação da rota de sync
     if ((path === '/queue/sync' || path === '/api/queue/sync') && 
         (event.httpMethod === 'POST' || event.httpMethod === 'GET')) {
+      console.log('Processando requisição para queue/sync');
+      const responseData = { success: true };
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true })
+        body: JSON.stringify(responseData)
       };
     }
 
     // Rota para o sistema de fila
     if ((path === '/queue' || path === '/api/queue') && event.httpMethod === 'GET') {
+      console.log('Processando requisição para /queue');
       return {
         statusCode: 200,
         headers,
