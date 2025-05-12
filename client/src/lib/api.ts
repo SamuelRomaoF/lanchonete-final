@@ -16,15 +16,30 @@ export async function fetchFromApi(endpoint: string, options: RequestInit = {}) 
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
         ...options.headers,
       },
     });
     
+    // Tratamento especial para DELETE: se for 404, tratamos como sucesso
     if (!response.ok) {
       console.error(`Erro na API: ${response.status} ${response.statusText}`);
+      
+      // Se for uma operação DELETE e erro 404, simular sucesso (o recurso já não existe)
+      if (options.method === 'DELETE' && response.status === 404) {
+        console.log('Operação DELETE com erro 404 - Simulando sucesso pois o recurso já não existe');
+        return { success: true, message: 'Recurso já não existe', status: 'DELETED' };
+      }
+      
       const text = await response.text();
       console.error(`Detalhes: ${text}`);
       throw new Error(`Erro na API: ${response.status} ${response.statusText}`);
+    }
+    
+    // Para respostas vazias, retornar objeto de sucesso
+    if (response.status === 204 || response.headers.get('Content-Length') === '0') {
+      return { success: true };
     }
     
     return await response.json();

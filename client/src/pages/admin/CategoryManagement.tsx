@@ -1,21 +1,21 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/context/AuthContext";
-import { useLocation } from "wouter";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
-import { Category, insertCategorySchema } from "@shared/schema";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Category } from "@shared/schema";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { useLocation } from "wouter";
+import { z } from "zod";
 
 // Esquema para o formulário de categoria
 const categoryFormSchema = z.object({
@@ -111,7 +111,17 @@ const CategoryManagement = () => {
   // Mutation para excluir categoria
   const deleteCategoryMutation = useMutation({
     mutationFn: (id: number) => {
-      return apiRequest("DELETE", `/api/categories/${id}`, {});
+      // Garante que o ID é tratado corretamente, mesmo quando for 0
+      console.log('Tentando excluir categoria com ID:', id, typeof id);
+      
+      // Adicionar parâmetros para evitar cache
+      const timestamp = new Date().getTime();
+      const noCache = `?_nocache=${timestamp}`;
+      
+      return apiRequest("DELETE", `/api/categories/${id}${noCache}`, {
+        forceDelete: true, // Parâmetro adicional para forçar exclusão
+        _timestamp: timestamp // Parâmetro adicional para evitar cache
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
@@ -124,11 +134,16 @@ const CategoryManagement = () => {
     },
     onError: (error) => {
       console.error("Erro ao excluir categoria:", error);
+      // Mesmo com erro, forçar atualização da interface
+      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
       toast({
         title: "Erro",
-        description: "Erro ao excluir categoria. Tente novamente.",
+        description: "Erro ao excluir categoria. A página será atualizada mesmo assim.",
         variant: "destructive",
       });
+      // Fechar o modal de exclusão mesmo em caso de erro
+      setIsDeleteDialogOpen(false);
+      setCurrentCategory(null);
     },
   });
   
@@ -151,7 +166,22 @@ const CategoryManagement = () => {
   
   const handleDeleteCategory = () => {
     if (currentCategory) {
+      console.log(`Iniciando exclusão da categoria: ${currentCategory.name} (ID: ${currentCategory.id})`);
+      
+      // Pré-invalidar os dados para forçar recarregamento imediato
+      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+      
+      // Iniciar a exclusão
       deleteCategoryMutation.mutate(currentCategory.id);
+      
+      // Fechar o modal de confirmação imediatamente para melhor experiência
+      setIsDeleteDialogOpen(false);
+      
+      // Mostrar toast informando que a operação está em andamento
+      toast({
+        title: "Excluindo categoria",
+        description: "A categoria está sendo excluída...",
+      });
     }
   };
   

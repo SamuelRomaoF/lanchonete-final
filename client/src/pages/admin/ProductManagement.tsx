@@ -153,10 +153,22 @@ const ProductManagement = () => {
   // Mutation para excluir produto
   const deleteProductMutation = useMutation({
     mutationFn: (id: number) => {
-      return apiRequest("DELETE", `/api/products/${id}`, {});
+      // Garante que o ID é tratado corretamente, mesmo quando for 0
+      console.log('Tentando excluir produto com ID:', id, typeof id);
+      
+      // Adicionar parâmetros para evitar cache
+      const timestamp = new Date().getTime();
+      const noCache = `?_nocache=${timestamp}`;
+      
+      return apiRequest("DELETE", `/api/products/${id}${noCache}`, {
+        forceDelete: true, // Parâmetro adicional para forçar exclusão
+        _timestamp: timestamp // Parâmetro adicional para evitar cache
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products/featured'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products/promotions'] });
       toast({
         title: "Produto excluído",
         description: "Produto excluído com sucesso",
@@ -166,11 +178,16 @@ const ProductManagement = () => {
     },
     onError: (error) => {
       console.error("Erro ao excluir produto:", error);
+      // Mesmo com erro, forçar atualização da interface
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
       toast({
         title: "Erro",
-        description: "Erro ao excluir produto. Tente novamente.",
+        description: "Erro ao excluir produto. A página será atualizada mesmo assim.",
         variant: "destructive",
       });
+      // Fechar o modal de exclusão mesmo em caso de erro
+      setIsDeleteDialogOpen(false);
+      setCurrentProduct(null);
     },
   });
   
@@ -193,7 +210,22 @@ const ProductManagement = () => {
   
   const handleDeleteProduct = () => {
     if (currentProduct) {
+      console.log(`Iniciando exclusão do produto: ${currentProduct.name} (ID: ${currentProduct.id})`);
+      
+      // Pré-invalidar os dados para forçar recarregamento imediato
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      
+      // Iniciar a exclusão
       deleteProductMutation.mutate(currentProduct.id);
+      
+      // Fechar o modal de confirmação imediatamente para melhor experiência
+      setIsDeleteDialogOpen(false);
+      
+      // Mostrar toast informando que a operação está em andamento
+      toast({
+        title: "Excluindo produto",
+        description: "O produto está sendo excluído...",
+      });
     }
   };
   
