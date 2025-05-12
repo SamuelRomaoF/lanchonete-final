@@ -416,22 +416,68 @@ exports.handler = async (event, context) => {
 
     // GET - Obter categorias
     if ((path === '/categories' || path === '/api/categories') && event.httpMethod === 'GET') {
-      const categories = await fetchFromBin(BINS.categories);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(categories)
-      };
+      try {
+        const categories = await fetchFromBin(BINS.categories);
+        
+        // Garantir que todas as categorias tenham campos obrigatórios
+        const validatedCategories = categories.map(category => {
+          return {
+            id: category.id || 0,
+            name: category.name || 'Sem nome',
+            description: category.description || '',
+            imageUrl: category.imageUrl || '',
+          };
+        });
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(validatedCategories)
+        };
+      } catch (error) {
+        console.error('Erro ao buscar categorias:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao buscar categorias' })
+        };
+      }
     }
 
     // GET - Obter produtos
     if ((path === '/products' || path === '/api/products') && event.httpMethod === 'GET') {
-      const products = await fetchFromBin(BINS.products);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(products)
-      };
+      try {
+        const products = await fetchFromBin(BINS.products);
+        
+        // Garantir que todos os produtos tenham campos obrigatórios
+        const validatedProducts = products.map(product => {
+          return {
+            id: product.id || 0,
+            name: product.name || 'Sem nome',
+            description: product.description || '',
+            price: product.price || 0,
+            categoryId: product.categoryId || 0,
+            imageUrl: product.imageUrl || '',
+            available: product.available !== false,
+            isFeatured: product.isFeatured || false,
+            isPromotion: product.isPromotion || false,
+            oldPrice: product.oldPrice || null
+          };
+        });
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(validatedProducts)
+        };
+      } catch (error) {
+        console.error('Erro ao buscar produtos:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao buscar produtos' })
+        };
+      }
     }
 
     // GET - Obter produtos em destaque
@@ -457,10 +503,18 @@ exports.handler = async (event, context) => {
     // Implementação da rota de check-reset
     if ((path === '/queue/check-reset' || path === '/api/queue/check-reset') && event.httpMethod === 'GET') {
       console.log('Processando requisição para check-reset');
+      
+      // Responder com formato esperado pelo frontend
+      const responseData = {
+        success: true,
+        reset: false,
+        timestamp: new Date().toISOString()
+      };
+      
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ success: true, reset: false })
+        body: JSON.stringify(responseData)
       };
     }
 
@@ -484,6 +538,253 @@ exports.handler = async (event, context) => {
         headers,
         body: JSON.stringify({ tickets: [] })
       };
+    }
+
+    // Implementação da rota de admin dashboard
+    if ((path === '/admin/dashboard' || path === '/api/admin/dashboard') && event.httpMethod === 'GET') {
+      console.log('Processando requisição para dashboard do admin');
+      
+      try {
+        // Contar produtos 
+        const products = await fetchFromBin(BINS.products);
+        
+        // Criar estatísticas de dashboard
+        const dashboardStats = {
+          totalOrders: 0,
+          totalSales: 0,
+          pendingOrders: 0,
+          productCount: products.length,
+          recentOrders: [],
+          popularProducts: []
+        };
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(dashboardStats)
+        };
+      } catch (error) {
+        console.error('Erro ao gerar estatísticas do dashboard:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao gerar estatísticas' })
+        };
+      }
+    }
+
+    // PUT - Atualizar categoria existente
+    if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'PUT') {
+      try {
+        const categoryId = parseInt(path.split('/').pop());
+        const updateData = JSON.parse(event.body);
+        
+        // Buscar categorias existentes
+        const categories = await fetchFromBin(BINS.categories);
+        
+        // Encontrar o índice da categoria a ser atualizada
+        const categoryIndex = categories.findIndex(c => c.id === categoryId);
+        
+        if (categoryIndex === -1) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Categoria não encontrada' })
+          };
+        }
+        
+        // Atualizar a categoria
+        const updatedCategory = {
+          ...categories[categoryIndex],
+          ...updateData,
+          id: categoryId // Garantir que o ID não mude
+        };
+        
+        categories[categoryIndex] = updatedCategory;
+        
+        // Salvar as alterações
+        await updateBin(BINS.categories, categories);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(updatedCategory)
+        };
+      } catch (err) {
+        console.error('Erro ao atualizar categoria:', err);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Dados inválidos', details: err.message })
+        };
+      }
+    }
+
+    // DELETE - Excluir categoria
+    if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'DELETE') {
+      try {
+        const categoryId = parseInt(path.split('/').pop());
+        
+        // Buscar categorias existentes
+        const categories = await fetchFromBin(BINS.categories);
+        
+        // Filtrar a categoria a ser removida
+        const filteredCategories = categories.filter(c => c.id !== categoryId);
+        
+        if (filteredCategories.length === categories.length) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Categoria não encontrada' })
+          };
+        }
+        
+        // Salvar as alterações
+        await updateBin(BINS.categories, filteredCategories);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, message: 'Categoria excluída com sucesso' })
+        };
+      } catch (err) {
+        console.error('Erro ao excluir categoria:', err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao excluir categoria', details: err.message })
+        };
+      }
+    }
+
+    // PUT - Atualizar produto existente
+    if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'PUT') {
+      try {
+        const productId = parseInt(path.split('/').pop());
+        const updateData = JSON.parse(event.body);
+        
+        // Buscar produtos existentes
+        const products = await fetchFromBin(BINS.products);
+        
+        // Encontrar o índice do produto a ser atualizado
+        const productIndex = products.findIndex(p => p.id === productId);
+        
+        if (productIndex === -1) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Produto não encontrado' })
+          };
+        }
+        
+        // Verificar status anterior de featured e promotion
+        const wasFeatureBefore = products[productIndex].isFeatured;
+        const wasPromotionBefore = products[productIndex].isPromotion;
+        
+        // Atualizar o produto
+        const updatedProduct = {
+          ...products[productIndex],
+          ...updateData,
+          id: productId // Garantir que o ID não mude
+        };
+        
+        products[productIndex] = updatedProduct;
+        
+        // Salvar as alterações na lista de produtos
+        await updateBin(BINS.products, products);
+        
+        // Atualizar lista de featured se necessário
+        if (updatedProduct.isFeatured !== wasFeatureBefore) {
+          const featuredProducts = await fetchFromBin(BINS.featured);
+          if (updatedProduct.isFeatured) {
+            // Adicionar aos destaques
+            featuredProducts.push(updatedProduct);
+          } else {
+            // Remover dos destaques
+            const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
+            await updateBin(BINS.featured, filteredFeatured);
+          }
+        }
+        
+        // Atualizar lista de promotions se necessário
+        if (updatedProduct.isPromotion !== wasPromotionBefore) {
+          const promotionProducts = await fetchFromBin(BINS.promotions);
+          if (updatedProduct.isPromotion) {
+            // Adicionar às promoções
+            promotionProducts.push(updatedProduct);
+          } else {
+            // Remover das promoções
+            const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
+            await updateBin(BINS.promotions, filteredPromotions);
+          }
+        }
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(updatedProduct)
+        };
+      } catch (err) {
+        console.error('Erro ao atualizar produto:', err);
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: 'Dados inválidos', details: err.message })
+        };
+      }
+    }
+
+    // DELETE - Excluir produto
+    if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
+      try {
+        const productId = parseInt(path.split('/').pop());
+        
+        // Buscar produtos existentes
+        const products = await fetchFromBin(BINS.products);
+        
+        // Buscar produto a ser removido
+        const productToDelete = products.find(p => p.id === productId);
+        
+        if (!productToDelete) {
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Produto não encontrado' })
+          };
+        }
+        
+        // Filtrar o produto a ser removido
+        const filteredProducts = products.filter(p => p.id !== productId);
+        
+        // Salvar as alterações
+        await updateBin(BINS.products, filteredProducts);
+        
+        // Remover também das listas especiais, se presente
+        if (productToDelete.isFeatured) {
+          const featuredProducts = await fetchFromBin(BINS.featured);
+          const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
+          await updateBin(BINS.featured, filteredFeatured);
+        }
+        
+        if (productToDelete.isPromotion) {
+          const promotionProducts = await fetchFromBin(BINS.promotions);
+          const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
+          await updateBin(BINS.promotions, filteredPromotions);
+        }
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, message: 'Produto excluído com sucesso' })
+        };
+      } catch (err) {
+        console.error('Erro ao excluir produto:', err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao excluir produto', details: err.message })
+        };
+      }
     }
 
     // Default case: Path not found
