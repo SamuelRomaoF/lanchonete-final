@@ -1,41 +1,13 @@
-// Determinar dinamicamente a URL base da API
-const getBaseUrl = () => {
-  // Se estivermos em produção e no Netlify
-  if (import.meta.env.PROD) {
-    const hostname = window.location.hostname;
-    console.log('Ambiente de produção detectado, hostname:', hostname);
-    
-    // Estamos no Netlify
-    if (hostname.includes('netlify.app') || !hostname.includes('localhost')) {
-      console.log('Usando URL base para Netlify: /.netlify/functions');
-      return '/.netlify/functions';  // Sem '/api' no final
-    }
-  }
-  
-  // Em desenvolvimento local
-  console.log('Usando URL base para desenvolvimento: /api');
-  return '/api';
-};
-
-export const API_BASE_URL = getBaseUrl();
+// API URL base, será substituída em produção pelo Netlify
+export const API_BASE_URL = import.meta.env.PROD ? '/.netlify/functions/api' : '/api';
 
 // Função de utilidade para fazer requisições à API
 export async function fetchFromApi(endpoint: string, options: RequestInit = {}) {
-  // Ajustar o endpoint para evitar duplicação de 'api' nas URLs
-  let url: string;
+  // Remover prefixo '/api' duplicado caso exista
+  const cleanEndpoint = endpoint.startsWith('/api') ? endpoint.substring(4) : endpoint;
   
-  if (API_BASE_URL === '/.netlify/functions') {
-    // Remover o '/api' do início do endpoint se existir
-    const cleanEndpoint = endpoint.startsWith('/api') 
-      ? endpoint.substring(4) // Remove '/api'
-      : endpoint;
-      
-    // Em produção/Netlify
-    url = `${API_BASE_URL}/api${cleanEndpoint.startsWith('/') ? cleanEndpoint : '/' + cleanEndpoint}`;
-  } else {
-    // Em desenvolvimento
-    url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
-  }
+  // Construir URL completa
+  const url = `${API_BASE_URL}${cleanEndpoint.startsWith('/') ? cleanEndpoint : '/' + cleanEndpoint}`;
   
   console.log(`Fazendo requisição para: ${url}`);
   

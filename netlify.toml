@@ -1,9 +1,10 @@
 [build]
-  command = "CI= npm run build:client"
+  command = "npm run build:client"
   publish = "dist"
   
 [functions]
   directory = "netlify/functions"
+  node_bundler = "esbuild"
 
 [[redirects]]
   from = "/api/*"
