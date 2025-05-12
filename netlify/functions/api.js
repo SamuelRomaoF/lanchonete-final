@@ -417,17 +417,32 @@ exports.handler = async (event, context) => {
     // GET - Obter categorias
     if ((path === '/categories' || path === '/api/categories') && event.httpMethod === 'GET') {
       try {
+        console.log('Buscando todas as categorias');
+        
         const categories = await fetchFromBin(BINS.categories);
+        console.log('Categorias encontradas:', categories.length);
+        
+        // Se não houver categorias, retornar array vazio em vez de null
+        if (!categories || !Array.isArray(categories)) {
+          console.log('Nenhuma categoria encontrada ou formato inválido, retornando array vazio');
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify([])
+          };
+        }
         
         // Garantir que todas as categorias tenham campos obrigatórios
         const validatedCategories = categories.map(category => {
           return {
-            id: category.id || 0,
+            id: typeof category.id === 'number' ? category.id : 0,
             name: category.name || 'Sem nome',
             description: category.description || '',
             imageUrl: category.imageUrl || '',
           };
         });
+        
+        console.log('Categorias validadas:', validatedCategories.length);
         
         return {
           statusCode: 200,
@@ -644,6 +659,100 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // DELETE - Excluir produto
+    if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
+      try {
+        console.log('Tentando excluir produto com caminho:', path);
+        
+        // Extrair ID do produto da URL de forma mais robusta
+        const parts = path.split('/');
+        const productIdStr = parts[parts.length - 1];
+        const productId = parseInt(productIdStr);
+        
+        console.log('ID do produto a excluir (string):', productIdStr);
+        console.log('ID do produto a excluir (número):', productId);
+        
+        // Verificar se o ID é um número válido
+        if (isNaN(productId)) {
+          console.log('ID do produto inválido:', productIdStr);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'ID de produto inválido' })
+          };
+        }
+        
+        // Buscar produtos existentes
+        const products = await fetchFromBin(BINS.products);
+        console.log('Produtos existentes:', products.length);
+        
+        // Listar IDs de produtos para debug
+        console.log('IDs de produtos existentes:', products.map(p => p.id));
+        
+        // Buscar produto a ser removido - tratar o ID 0 como válido
+        const productToDelete = products.find(p => p.id === productId);
+        
+        if (!productToDelete) {
+          console.log('Produto não encontrado com ID:', productId);
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Produto não encontrado' })
+          };
+        }
+        
+        console.log('Produto a ser excluído:', productToDelete);
+        
+        // Filtrar o produto a ser removido
+        const filteredProducts = products.filter(p => p.id !== productId);
+        console.log('Quantidade de produtos após a remoção:', filteredProducts.length);
+        
+        // Salvar as alterações
+        const success = await updateBin(BINS.products, filteredProducts);
+        
+        if (!success) {
+          console.error('Falha ao atualizar bin após excluir produto');
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ error: 'Falha ao excluir produto' })
+          };
+        }
+        
+        console.log('Verificando remoção das listas especiais');
+        
+        // Remover também das listas especiais, se presente
+        if (productToDelete.isFeatured) {
+          const featuredProducts = await fetchFromBin(BINS.featured);
+          const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
+          await updateBin(BINS.featured, filteredFeatured);
+          console.log('Produto removido da lista de destacados');
+        }
+        
+        if (productToDelete.isPromotion) {
+          const promotionProducts = await fetchFromBin(BINS.promotions);
+          const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
+          await updateBin(BINS.promotions, filteredPromotions);
+          console.log('Produto removido da lista de promoções');
+        }
+        
+        console.log('Produto excluído com sucesso, ID:', productId);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ success: true, message: 'Produto excluído com sucesso' })
+        };
+      } catch (err) {
+        console.error('Erro ao excluir produto:', err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao excluir produto', details: err.message })
+        };
+      }
+    }
+
     // DELETE - Excluir categoria
     if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
@@ -651,13 +760,26 @@ exports.handler = async (event, context) => {
         
         // Extrair ID da categoria da URL de forma mais robusta
         const parts = path.split('/');
-        const categoryId = parseInt(parts[parts.length - 1]);
+        const categoryIdStr = parts[parts.length - 1];
+        const categoryId = parseInt(categoryIdStr);
         
-        console.log('ID da categoria a excluir:', categoryId);
+        console.log('ID da categoria a excluir (string):', categoryIdStr);
+        console.log('ID da categoria a excluir (número):', categoryId);
+        
+        // Verificar se o ID é um número válido
+        if (isNaN(categoryId)) {
+          console.log('ID da categoria inválido:', categoryIdStr);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'ID de categoria inválido' })
+          };
+        }
         
         // Buscar categorias existentes
         const categories = await fetchFromBin(BINS.categories);
         console.log('Categorias existentes:', categories);
+        console.log('IDs de categorias existentes:', categories.map(c => c.id));
         
         // Verificar se a categoria existe antes de remover
         const categoryExists = categories.some(c => c.id === categoryId);
@@ -815,85 +937,6 @@ exports.handler = async (event, context) => {
           statusCode: 400,
           headers,
           body: JSON.stringify({ error: 'Dados inválidos', details: err.message })
-        };
-      }
-    }
-
-    // DELETE - Excluir produto
-    if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
-      try {
-        console.log('Tentando excluir produto com caminho:', path);
-        
-        // Extrair ID do produto da URL de forma mais robusta
-        const parts = path.split('/');
-        const productId = parseInt(parts[parts.length - 1]);
-        
-        console.log('ID do produto a excluir:', productId);
-        
-        // Buscar produtos existentes
-        const products = await fetchFromBin(BINS.products);
-        console.log('Produtos existentes:', products.length);
-        
-        // Buscar produto a ser removido
-        const productToDelete = products.find(p => p.id === productId);
-        
-        if (!productToDelete) {
-          console.log('Produto não encontrado com ID:', productId);
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ error: 'Produto não encontrado' })
-          };
-        }
-        
-        console.log('Produto a ser excluído:', productToDelete);
-        
-        // Filtrar o produto a ser removido
-        const filteredProducts = products.filter(p => p.id !== productId);
-        console.log('Quantidade de produtos após a remoção:', filteredProducts.length);
-        
-        // Salvar as alterações
-        const success = await updateBin(BINS.products, filteredProducts);
-        
-        if (!success) {
-          console.error('Falha ao atualizar bin após excluir produto');
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Falha ao excluir produto' })
-          };
-        }
-        
-        console.log('Verificando remoção das listas especiais');
-        
-        // Remover também das listas especiais, se presente
-        if (productToDelete.isFeatured) {
-          const featuredProducts = await fetchFromBin(BINS.featured);
-          const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
-          await updateBin(BINS.featured, filteredFeatured);
-          console.log('Produto removido da lista de destacados');
-        }
-        
-        if (productToDelete.isPromotion) {
-          const promotionProducts = await fetchFromBin(BINS.promotions);
-          const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
-          await updateBin(BINS.promotions, filteredPromotions);
-          console.log('Produto removido da lista de promoções');
-        }
-        
-        console.log('Produto excluído com sucesso, ID:', productId);
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ success: true, message: 'Produto excluído com sucesso' })
-        };
-      } catch (err) {
-        console.error('Erro ao excluir produto:', err);
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({ error: 'Erro ao excluir produto', details: err.message })
         };
       }
     }
