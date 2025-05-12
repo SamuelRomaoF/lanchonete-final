@@ -7,8 +7,8 @@ const getBaseUrl = () => {
     
     // Estamos no Netlify
     if (hostname.includes('netlify.app') || !hostname.includes('localhost')) {
-      console.log('Usando URL base para Netlify: /.netlify/functions/api');
-      return '/.netlify/functions';
+      console.log('Usando URL base para Netlify: /.netlify/functions');
+      return '/.netlify/functions';  // Sem '/api' no final
     }
   }
   
@@ -21,12 +21,17 @@ export const API_BASE_URL = getBaseUrl();
 
 // Função de utilidade para fazer requisições à API
 export async function fetchFromApi(endpoint: string, options: RequestInit = {}) {
-  // Ajustar o endpoint para evitar duplicação de 'api' nas URLs quando em produção
+  // Ajustar o endpoint para evitar duplicação de 'api' nas URLs
   let url: string;
   
   if (API_BASE_URL === '/.netlify/functions') {
+    // Remover o '/api' do início do endpoint se existir
+    const cleanEndpoint = endpoint.startsWith('/api') 
+      ? endpoint.substring(4) // Remove '/api'
+      : endpoint;
+      
     // Em produção/Netlify
-    url = `${API_BASE_URL}/api${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
+    url = `${API_BASE_URL}/api${cleanEndpoint.startsWith('/') ? cleanEndpoint : '/' + cleanEndpoint}`;
   } else {
     // Em desenvolvimento
     url = `${API_BASE_URL}${endpoint.startsWith('/') ? endpoint : '/' + endpoint}`;
