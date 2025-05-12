@@ -9,6 +9,23 @@ const BINS = {
   users: '682164e48a456b79669bf1ef'  // ID do bin para usuários
 };
 
+// Helper para extrair e validar IDs de produtos/categorias
+function extractAndValidateId(path) {
+  const parts = path.split('/');
+  const idStr = parts[parts.length - 1];
+  const id = parseInt(idStr, 10);
+  
+  const result = {
+    idStr,
+    id,
+    isValid: !isNaN(id)
+  };
+  
+  console.log(`Extraindo ID da rota ${path}: ${JSON.stringify(result)}`);
+  
+  return result;
+}
+
 // Funções para interagir com JSONBin.io
 async function fetchFromBin(binId) {
   try {
@@ -588,28 +605,101 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Buscar produto pelo ID
+    if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'GET') {
+      try {
+        console.log('Buscando produto por ID:', path);
+        
+        // Extrair e validar ID usando o helper
+        const idInfo = extractAndValidateId(path);
+        
+        if (!idInfo.isValid) {
+          console.log('ID do produto inválido:', idInfo.idStr);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'ID de produto inválido' })
+          };
+        }
+        
+        const productId = idInfo.id; // Usar o ID já convertido para número
+        console.log('ID do produto a buscar:', productId, 'tipo:', typeof productId);
+        
+        const products = await fetchFromBin(BINS.products);
+        console.log('Total de produtos:', products.length);
+        console.log('IDs de produtos disponíveis:', products.map(p => p.id));
+        
+        // Verificar explicitamente se o produto existe usando comparação estrita
+        const product = products.find(p => p.id === productId);
+        
+        if (!product) {
+          console.log(`Produto não encontrado com ID: ${productId} (tipo: ${typeof productId})`);
+          
+          // Verificação adicional para depuração
+          const productIdsExatos = products.map(p => `${p.id} (tipo: ${typeof p.id})`);
+          console.log('IDs de produtos com tipo:', productIdsExatos);
+          
+          return {
+            statusCode: 404,
+            headers,
+            body: JSON.stringify({ error: 'Produto não encontrado' })
+          };
+        }
+        
+        console.log('Produto encontrado:', product);
+        
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(product)
+        };
+      } catch (error) {
+        console.error('Erro ao buscar produto por ID:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao buscar produto', details: error.message })
+        };
+      }
+    }
+
     // PUT - Atualizar categoria existente
     if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'PUT') {
       try {
         console.log('Tentando atualizar categoria com caminho:', path);
         
-        // Extrair ID da categoria da URL de forma mais robusta
-        const parts = path.split('/');
-        const categoryId = parseInt(parts[parts.length - 1]);
+        // Extrair e validar ID usando o helper
+        const idInfo = extractAndValidateId(path);
         
-        console.log('ID da categoria a atualizar:', categoryId);
+        if (!idInfo.isValid) {
+          console.log('ID da categoria inválido:', idInfo.idStr);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'ID de categoria inválido' })
+          };
+        }
+        
+        const categoryId = idInfo.id; // Usar o ID já convertido para número
+        console.log('ID da categoria a atualizar:', categoryId, 'tipo:', typeof categoryId);
         
         const updateData = JSON.parse(event.body);
         console.log('Dados para atualização:', updateData);
         
         // Buscar categorias existentes
         const categories = await fetchFromBin(BINS.categories);
+        console.log('IDs de categorias disponíveis:', categories.map(c => c.id));
         
-        // Encontrar o índice da categoria a ser atualizada
+        // Encontrar o índice da categoria a ser atualizada usando comparação estrita
         const categoryIndex = categories.findIndex(c => c.id === categoryId);
         
         if (categoryIndex === -1) {
-          console.log('Categoria não encontrada com ID:', categoryId);
+          console.log(`Categoria não encontrada com ID: ${categoryId} (tipo: ${typeof categoryId})`);
+          
+          // Verificação adicional para depuração
+          const categoryIdsExatos = categories.map(c => `${c.id} (tipo: ${typeof c.id})`);
+          console.log('IDs de categorias com tipo:', categoryIdsExatos);
+          
           return {
             statusCode: 404,
             headers,
@@ -664,23 +754,20 @@ exports.handler = async (event, context) => {
       try {
         console.log('Tentando excluir produto com caminho:', path);
         
-        // Extrair ID do produto da URL de forma mais robusta
-        const parts = path.split('/');
-        const productIdStr = parts[parts.length - 1];
-        const productId = parseInt(productIdStr);
+        // Extrair e validar ID usando o helper
+        const idInfo = extractAndValidateId(path);
         
-        console.log('ID do produto a excluir (string):', productIdStr);
-        console.log('ID do produto a excluir (número):', productId);
-        
-        // Verificar se o ID é um número válido
-        if (isNaN(productId)) {
-          console.log('ID do produto inválido:', productIdStr);
+        if (!idInfo.isValid) {
+          console.log('ID do produto inválido:', idInfo.idStr);
           return {
             statusCode: 400,
             headers,
             body: JSON.stringify({ error: 'ID de produto inválido' })
           };
         }
+        
+        const productId = idInfo.id; // Usar o ID já convertido para número
+        console.log('ID do produto a excluir:', productId, 'tipo:', typeof productId);
         
         // Buscar produtos existentes
         const products = await fetchFromBin(BINS.products);
@@ -689,11 +776,16 @@ exports.handler = async (event, context) => {
         // Listar IDs de produtos para debug
         console.log('IDs de produtos existentes:', products.map(p => p.id));
         
-        // Buscar produto a ser removido - tratar o ID 0 como válido
+        // Verificar explicitamente se o produto existe usando uma comparação estrita
         const productToDelete = products.find(p => p.id === productId);
         
         if (!productToDelete) {
-          console.log('Produto não encontrado com ID:', productId);
+          console.log(`Produto não encontrado com ID: ${productId} (tipo: ${typeof productId})`);
+          
+          // Verificação adicional para depuração
+          const productIdsExatos = products.map(p => `${p.id} (tipo: ${typeof p.id})`);
+          console.log('IDs de produtos com tipo:', productIdsExatos);
+          
           return {
             statusCode: 404,
             headers,
@@ -703,7 +795,7 @@ exports.handler = async (event, context) => {
         
         console.log('Produto a ser excluído:', productToDelete);
         
-        // Filtrar o produto a ser removido
+        // Filtrar o produto a ser removido com comparação estrita
         const filteredProducts = products.filter(p => p.id !== productId);
         console.log('Quantidade de produtos após a remoção:', filteredProducts.length);
         
@@ -758,17 +850,11 @@ exports.handler = async (event, context) => {
       try {
         console.log('Tentando excluir categoria com caminho:', path);
         
-        // Extrair ID da categoria da URL de forma mais robusta
-        const parts = path.split('/');
-        const categoryIdStr = parts[parts.length - 1];
-        const categoryId = parseInt(categoryIdStr);
+        // Extrair e validar ID usando o helper
+        const idInfo = extractAndValidateId(path);
         
-        console.log('ID da categoria a excluir (string):', categoryIdStr);
-        console.log('ID da categoria a excluir (número):', categoryId);
-        
-        // Verificar se o ID é um número válido
-        if (isNaN(categoryId)) {
-          console.log('ID da categoria inválido:', categoryIdStr);
+        if (!idInfo.isValid) {
+          console.log('ID da categoria inválido:', idInfo.idStr);
           return {
             statusCode: 400,
             headers,
@@ -776,16 +862,24 @@ exports.handler = async (event, context) => {
           };
         }
         
+        const categoryId = idInfo.id; // Usar o ID já convertido para número
+        console.log('ID da categoria a excluir:', categoryId, 'tipo:', typeof categoryId);
+        
         // Buscar categorias existentes
         const categories = await fetchFromBin(BINS.categories);
-        console.log('Categorias existentes:', categories);
+        console.log('Categorias existentes:', categories.length);
         console.log('IDs de categorias existentes:', categories.map(c => c.id));
         
-        // Verificar se a categoria existe antes de remover
-        const categoryExists = categories.some(c => c.id === categoryId);
+        // Verificar se a categoria existe antes de remover usando comparação estrita
+        const categoryToDelete = categories.find(c => c.id === categoryId);
         
-        if (!categoryExists) {
-          console.log('Categoria não encontrada com ID:', categoryId);
+        if (!categoryToDelete) {
+          console.log(`Categoria não encontrada com ID: ${categoryId} (tipo: ${typeof categoryId})`);
+          
+          // Verificação adicional para depuração
+          const categoryIdsExatos = categories.map(c => `${c.id} (tipo: ${typeof c.id})`);
+          console.log('IDs de categorias com tipo:', categoryIdsExatos);
+          
           return {
             statusCode: 404,
             headers,
@@ -793,9 +887,9 @@ exports.handler = async (event, context) => {
           };
         }
         
-        // Filtrar a categoria a ser removida
+        // Filtrar a categoria a ser removida usando comparação estrita
         const filteredCategories = categories.filter(c => c.id !== categoryId);
-        console.log('Categorias após a remoção:', filteredCategories);
+        console.log('Categorias após a remoção:', filteredCategories.length);
         
         // Salvar as alterações
         const success = await updateBin(BINS.categories, filteredCategories);
@@ -831,23 +925,38 @@ exports.handler = async (event, context) => {
       try {
         console.log('Tentando atualizar produto com caminho:', path);
         
-        // Extrair ID do produto da URL de forma mais robusta
-        const parts = path.split('/');
-        const productId = parseInt(parts[parts.length - 1]);
+        // Extrair e validar ID usando o helper
+        const idInfo = extractAndValidateId(path);
         
-        console.log('ID do produto a atualizar:', productId);
+        if (!idInfo.isValid) {
+          console.log('ID do produto inválido:', idInfo.idStr);
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ error: 'ID de produto inválido' })
+          };
+        }
+        
+        const productId = idInfo.id; // Usar o ID já convertido para número
+        console.log('ID do produto a atualizar:', productId, 'tipo:', typeof productId);
         
         const updateData = JSON.parse(event.body);
         console.log('Dados para atualização:', updateData);
         
         // Buscar produtos existentes
         const products = await fetchFromBin(BINS.products);
+        console.log('IDs de produtos disponíveis:', products.map(p => p.id));
         
-        // Encontrar o índice do produto a ser atualizado
+        // Encontrar o índice do produto a ser atualizado usando comparação estrita
         const productIndex = products.findIndex(p => p.id === productId);
         
         if (productIndex === -1) {
-          console.log('Produto não encontrado com ID:', productId);
+          console.log(`Produto não encontrado com ID: ${productId} (tipo: ${typeof productId})`);
+          
+          // Verificação adicional para depuração
+          const productIdsExatos = products.map(p => `${p.id} (tipo: ${typeof p.id})`);
+          console.log('IDs de produtos com tipo:', productIdsExatos);
+          
           return {
             statusCode: 404,
             headers,
