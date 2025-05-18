@@ -12,16 +12,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Category } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
 import { z } from "zod";
 
 // Esquema para o formulário de categoria
 const categoryFormSchema = z.object({
-  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
-  imageUrl: z.string().optional(),
 });
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
@@ -56,7 +55,6 @@ const CategoryManagement = () => {
     defaultValues: {
       name: "",
       description: "",
-      imageUrl: "",
     },
   });
   
@@ -190,7 +188,6 @@ const CategoryManagement = () => {
     form.reset({
       name: "",
       description: "",
-      imageUrl: "",
     });
     setIsCreateDialogOpen(true);
   };
@@ -199,7 +196,6 @@ const CategoryManagement = () => {
     form.reset({
       name: category.name,
       description: category.description || "",
-      imageUrl: category.imageUrl || "",
     });
     setCurrentCategory(category);
     setIsEditDialogOpen(true);
@@ -209,6 +205,18 @@ const CategoryManagement = () => {
     setCurrentCategory(category);
     setIsDeleteDialogOpen(true);
   };
+  
+  // Atualizar valores do formulário quando editar uma categoria
+  useEffect(() => {
+    if (currentCategory && isEditDialogOpen) {
+      form.reset({
+        name: currentCategory.name,
+        description: currentCategory.description || "",
+      });
+      setCurrentCategory(currentCategory);
+      setIsEditDialogOpen(true);
+    }
+  }, [currentCategory, isEditDialogOpen, form]);
   
   if (!user || user.type !== "admin") {
     return (
@@ -262,13 +270,6 @@ const CategoryManagement = () => {
                 <TableRow key={category.id}>
                   <TableCell className="font-medium">
                     <div className="flex items-center space-x-3">
-                      {category.imageUrl && (
-                        <img 
-                          src={category.imageUrl} 
-                          alt={category.name} 
-                          className="h-10 w-10 rounded object-cover"
-                        />
-                      )}
                       <div>
                         {category.name}
                       </div>
@@ -353,23 +354,6 @@ const CategoryManagement = () => {
                 )}
               />
               
-              <FormField
-                control={form.control}
-                name="imageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL da Imagem</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      URL de uma imagem representativa para a categoria
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
               <DialogFooter>
                 <Button 
                   type="button" 
@@ -424,23 +408,6 @@ const CategoryManagement = () => {
                     </FormControl>
                     <FormDescription>
                       Uma breve descrição da categoria
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="imageUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL da Imagem</FormLabel>
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormDescription>
-                      URL de uma imagem representativa para a categoria
                     </FormDescription>
                     <FormMessage />
                   </FormItem>

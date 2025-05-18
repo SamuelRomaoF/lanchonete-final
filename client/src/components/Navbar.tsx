@@ -1,4 +1,5 @@
 import LoginForm from "@/components/LoginForm";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import {
     Dialog,
     DialogContent,
@@ -42,7 +43,7 @@ const Navbar = () => {
 
   return (
     <>
-      <nav className="sticky top-0 z-50 bg-white shadow-md">
+      <nav className="sticky top-0 z-50 bg-background text-foreground shadow-md transition-colors duration-200">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-2">
@@ -91,13 +92,15 @@ const Navbar = () => {
             )}
             
             <div className="flex items-center space-x-4">
+              <ThemeToggle />
+              
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-1 text-sm">
                     <i className="ri-user-line text-xl"></i>
                     <span className="hidden md:inline-block">{user.name}</span>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
+                  <DropdownMenuContent align="end" className="bg-popover text-popover-foreground border-border">
                     <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {user.type === 'admin' && (
@@ -123,7 +126,7 @@ const Navbar = () => {
               )}
               
               <button
-                className="md:hidden text-neutral"
+                className="md:hidden text-muted-foreground"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label="Menu"
               >
@@ -138,7 +141,7 @@ const Navbar = () => {
         </div>
         
         {mobileMenuOpen && (
-          <div className="bg-white border-t md:hidden">
+          <div className="bg-background border-t border-border md:hidden">
             <div className="container mx-auto px-4 py-2">
               <div className="flex flex-col space-y-3 py-3 text-sm font-medium">
                 {!isAdminPage ? (
@@ -177,26 +180,10 @@ const Navbar = () => {
                   </>
                 )}
                 
-                {user ? (
-                  <button 
-                    onClick={handleLogout}
-                    className="flex items-center space-x-1 hover:text-primary transition-colors py-2"
-                  >
-                    <i className="ri-logout-box-line text-xl"></i>
-                    <span>Sair</span>
-                  </button>
-                ) : (
-                  <button 
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      setLoginOpen(true);
-                    }}
-                    className="flex items-center space-x-1 hover:text-primary transition-colors py-2"
-                  >
-                    <i className="ri-user-line text-xl"></i>
-                    <span>Login Admin</span>
-                  </button>
-                )}
+                <div className="flex items-center space-x-2 py-2">
+                  <span>Alternar tema</span>
+                  <ThemeToggle />
+                </div>
               </div>
             </div>
           </div>
@@ -205,10 +192,10 @@ const Navbar = () => {
       
       {/* Login Modal */}
       <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-popover text-popover-foreground">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">Login Administrativo</DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Acesse o painel administrativo
             </DialogDescription>
           </DialogHeader>

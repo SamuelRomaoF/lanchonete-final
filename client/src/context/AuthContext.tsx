@@ -8,6 +8,11 @@ interface User {
   type: 'cliente' | 'admin';
 }
 
+interface AuthSession {
+  user: User;
+  token: string;
+}
+
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -34,15 +39,56 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Função para salvar no localStorage
+  const saveAuthToLocalStorage = (userData: User, token: string) => {
+    const authData: AuthSession = {
+      user: userData,
+      token: token
+    };
+    localStorage.setItem('authSession', JSON.stringify(authData));
+    console.log('Sessão salva no localStorage', authData);
+  };
+  
+  // Função para recuperar do localStorage
+  const loadAuthFromLocalStorage = (): AuthSession | null => {
+    const authData = localStorage.getItem('authSession');
+    if (authData) {
+      try {
+        return JSON.parse(authData);
+      } catch (error) {
+        console.error('Erro ao parsear dados de autenticação', error);
+        localStorage.removeItem('authSession');
+      }
+    }
+    return null;
+  };
+  
+  // Função para remover do localStorage
+  const clearAuthFromLocalStorage = () => {
+    localStorage.removeItem('authSession');
+    console.log('Sessão removida do localStorage');
+  };
+  
   const checkAuth = async () => {
     try {
+      // Primeiro, tentar usar dados do localStorage
+      const localAuth = loadAuthFromLocalStorage();
+      
+      if (localAuth && localAuth.user && localAuth.token) {
+        console.log("Dados de autenticação encontrados no localStorage");
+        setUser(localAuth.user);
+        setLoading(false);
+        return;
+      }
+      
+      // Se não tiver no localStorage, tentar buscar da API
       const response = await fetch("/api/auth/me", {
         credentials: "include",
       });
       
       if (response.ok) {
         const data = await response.json();
-        console.log("Dados do usuário recuperados:", data);
+        console.log("Dados do usuário recuperados da API:", data);
         setUser(data.user);
       } else {
         console.log("Usuário não autenticado");
@@ -80,6 +126,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Garantir que os dados do usuário estejam no formato correto
       const userData = data.user || data;
+      const token = data.token || "";
+      
+      // Salvar no localStorage
+      saveAuthToLocalStorage(userData, token);
+      
       setUser(userData);
       return userData;
     } catch (error) {
@@ -91,6 +142,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = async () => {
     await apiRequest("POST", "/api/auth/logout", {});
     setUser(null);
+    clearAuthFromLocalStorage();
   };
   
   const value = {

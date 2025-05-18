@@ -74,17 +74,16 @@ const Home = () => {
       </section>
 
       {/* Categories Section */}
-      <section className="py-12">
+      <section className="py-12 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-8 text-center">Categorias</h2>
+          <h2 className="text-2xl font-bold mb-8 text-center text-foreground">Categorias</h2>
           
           {categoriesLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md h-56 animate-pulse">
-                  <div className="w-full h-36 bg-gray-200"></div>
+                <div key={i} className="bg-card text-card-foreground rounded-xl overflow-hidden shadow-md h-24 animate-pulse flex items-center justify-center">
                   <div className="p-4 text-center">
-                    <div className="h-4 bg-gray-200 rounded w-3/4 mx-auto"></div>
+                    <div className="h-4 bg-muted rounded w-3/4 mx-auto"></div>
                   </div>
                 </div>
               ))}
@@ -96,7 +95,6 @@ const Home = () => {
                   key={category.id} 
                   id={category.id} 
                   name={category.name} 
-                  imageUrl={category.imageUrl || "https://images.unsplash.com/photo-1586190848861-99aa4a171e90"} 
                 />
               ))}
             </div>
@@ -105,23 +103,23 @@ const Home = () => {
       </section>
 
       {/* Featured Products Section */}
-      <section className="py-12 bg-neutral-lightest">
+      <section className="py-12 bg-muted">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-2 text-center">Mais Populares</h2>
-          <p className="text-center text-neutral mb-8">Os favoritos dos estudantes e professores</p>
+          <h2 className="text-2xl font-bold mb-2 text-center text-foreground">Mais Populares</h2>
+          <p className="text-center text-muted-foreground mb-8">Os favoritos dos estudantes e professores</p>
           
           {productsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(3)].map((_, i) => (
-                <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md h-96 animate-pulse">
-                  <div className="w-full h-48 bg-gray-200"></div>
+                <div key={i} className="bg-card rounded-xl overflow-hidden shadow-md h-96 animate-pulse">
+                  <div className="w-full h-48 bg-muted"></div>
                   <div className="p-4">
-                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-4"></div>
-                    <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                    <div className="h-5 bg-muted rounded w-3/4 mb-4"></div>
+                    <div className="h-4 bg-muted rounded w-full mb-2"></div>
+                    <div className="h-4 bg-muted rounded w-2/3 mb-4"></div>
                     <div className="flex justify-between items-center">
-                      <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-                      <div className="h-10 bg-gray-200 rounded w-1/4"></div>
+                      <div className="h-6 bg-muted rounded w-1/4"></div>
+                      <div className="h-10 bg-muted rounded w-1/4"></div>
                     </div>
                   </div>
                 </div>
@@ -153,7 +151,7 @@ const Home = () => {
           
           <div className="text-center mt-8">
             <Link href="/produtos">
-              <Button variant="outline" className="bg-white hover:bg-neutral-lightest text-primary font-medium py-3 px-6 rounded-lg border border-primary">
+              <Button variant="outline" className="bg-card text-primary font-medium py-3 px-6 rounded-lg border border-primary">
                 Ver Cardápio Completo
               </Button>
             </Link>
@@ -162,9 +160,9 @@ const Home = () => {
       </section>
 
       {/* Offers Section */}
-      <section className="py-12">
+      <section className="py-12 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-8 text-center">Ofertas Especiais</h2>
+          <h2 className="text-2xl font-bold mb-8 text-center text-foreground">Ofertas Especiais</h2>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-gradient-to-r from-primary to-primary-dark text-white rounded-xl overflow-hidden shadow-lg">
@@ -172,7 +170,7 @@ const Home = () => {
                 <h3 className="text-xl md:text-2xl font-bold mb-2">Combo da Manhã</h3>
                 <p className="mb-4 opacity-90">Café + pão na chapa por apenas R$8,90 até as 10h da manhã!</p>
                 <Link href="/produtos">
-                  <Button variant="secondary" className="bg-white hover:bg-neutral-lightest text-primary font-medium py-2 px-4 rounded-lg">
+                  <Button variant="secondary" className="bg-white dark:bg-gray-200 hover:bg-neutral-lightest text-primary font-medium py-2 px-4 rounded-lg">
                     Ver Detalhes
                   </Button>
                 </Link>
@@ -184,7 +182,7 @@ const Home = () => {
                 <h3 className="text-xl md:text-2xl font-bold mb-2">Combo Estudante</h3>
                 <p className="mb-4 opacity-90">Hambúrguer, batata e refrigerante por apenas R$ 25,90 com carteirinha!</p>
                 <Link href="/produtos">
-                  <Button variant="secondary" className="bg-white hover:bg-neutral-lightest text-secondary font-medium py-2 px-4 rounded-lg">
+                  <Button variant="secondary" className="bg-white dark:bg-gray-200 hover:bg-neutral-lightest text-secondary font-medium py-2 px-4 rounded-lg">
                     Ver Detalhes
                   </Button>
                 </Link>
@@ -195,41 +193,41 @@ const Home = () => {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-12 bg-neutral-lightest">
+      <section className="py-12 bg-muted">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-2 text-center">Como Funciona</h2>
-          <p className="text-center text-neutral mb-8">Veja nosso cardápio online e peça pessoalmente</p>
+          <h2 className="text-2xl font-bold mb-2 text-center text-foreground">Como Funciona</h2>
+          <p className="text-center text-muted-foreground mb-8">Veja nosso cardápio online e peça pessoalmente</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">1</div>
-              <h3 className="font-semibold mb-2">Consulte o cardápio online</h3>
-              <p className="text-neutral">Navegue pelo nosso cardápio no site e descubra todas as opções disponíveis.</p>
+              <h3 className="font-semibold mb-2 text-foreground">Consulte o cardápio online</h3>
+              <p className="text-muted-foreground">Navegue pelo nosso cardápio no site e descubra todas as opções disponíveis.</p>
             </div>
             
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">2</div>
-              <h3 className="font-semibold mb-2">Visite nossa cantina</h3>
-              <p className="text-neutral">Compareça à nossa cantina nos horários de funcionamento.</p>
+              <h3 className="font-semibold mb-2 text-foreground">Visite nossa cantina</h3>
+              <p className="text-muted-foreground">Compareça à nossa cantina nos horários de funcionamento.</p>
             </div>
             
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">3</div>
-              <h3 className="font-semibold mb-2">Faça seu pedido pessoalmente</h3>
-              <p className="text-neutral">Realize seu pedido e pagamento diretamente no balcão da cantina.</p>
+              <h3 className="font-semibold mb-2 text-foreground">Faça seu pedido pessoalmente</h3>
+              <p className="text-muted-foreground">Realize seu pedido e pagamento diretamente no balcão da cantina.</p>
             </div>
           </div>
         </div>
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-12">
+      <section className="py-12 bg-background">
         <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-2 text-center">O Que Nossos Clientes Dizem</h2>
-          <p className="text-center text-neutral mb-8">Avaliações de quem já experimentou nossos lanches</p>
+          <h2 className="text-2xl font-bold mb-2 text-center text-foreground">O Que Nossos Clientes Dizem</h2>
+          <p className="text-center text-muted-foreground mb-8">Avaliações de quem já experimentou nossos lanches</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl p-6 shadow-md">
+            <div className="bg-card rounded-xl p-6 shadow-md">
               <div className="flex items-center mb-4">
                 <div className="text-accent">
                   <i className="ri-star-fill"></i>
@@ -239,19 +237,19 @@ const Home = () => {
                   <i className="ri-star-fill"></i>
                 </div>
               </div>
-              <p className="text-neutral mb-4">"Os lanches são perfeitos para a correria da faculdade. Rápidos, saborosos e com preço justo. O atendimento é sempre cordial e eficiente."</p>
+              <p className="text-muted-foreground mb-4">"Os lanches são perfeitos para a correria da faculdade. Rápidos, saborosos e com preço justo. O atendimento é sempre cordial e eficiente."</p>
               <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-neutral-light flex items-center justify-center mr-3">
-                  <span className="font-medium text-neutral-dark">MR</span>
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mr-3">
+                  <span className="font-medium text-muted-foreground">MR</span>
                 </div>
                 <div>
-                  <h4 className="font-medium">Marcos R.</h4>
-                  <p className="text-xs text-neutral">Estudante de Engenharia</p>
+                  <h4 className="font-medium text-card-foreground">Marcos R.</h4>
+                  <p className="text-xs text-muted-foreground">Estudante de Engenharia</p>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-xl p-6 shadow-md">
+            <div className="bg-card rounded-xl p-6 shadow-md">
               <div className="flex items-center mb-4">
                 <div className="text-accent">
                   <i className="ri-star-fill"></i>
@@ -261,19 +259,19 @@ const Home = () => {
                   <i className="ri-star-half-fill"></i>
                 </div>
               </div>
-              <p className="text-neutral mb-4">"A pizza de calabresa é a melhor da cidade! Massa no ponto certo e recheio generoso. Sempre peço pelo app e nunca me decepcionei."</p>
+              <p className="text-muted-foreground mb-4">"A pizza de calabresa é a melhor da cidade! Massa no ponto certo e recheio generoso. Sempre peço pelo app e nunca me decepcionei."</p>
               <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-neutral-light flex items-center justify-center mr-3">
-                  <span className="font-medium text-neutral-dark">CS</span>
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mr-3">
+                  <span className="font-medium text-muted-foreground">CS</span>
                 </div>
                 <div>
-                  <h4 className="font-medium">Carla S.</h4>
-                  <p className="text-xs text-neutral">Cliente desde 2022</p>
+                  <h4 className="font-medium text-card-foreground">Carla S.</h4>
+                  <p className="text-xs text-muted-foreground">Cliente desde 2022</p>
                 </div>
               </div>
             </div>
             
-            <div className="bg-white rounded-xl p-6 shadow-md">
+            <div className="bg-card rounded-xl p-6 shadow-md">
               <div className="flex items-center mb-4">
                 <div className="text-accent">
                   <i className="ri-star-fill"></i>
@@ -283,14 +281,14 @@ const Home = () => {
                   <i className="ri-star-fill"></i>
                 </div>
               </div>
-              <p className="text-neutral mb-4">"Atendimento nota 10! O combo família é perfeito para reuniões em casa. Os lanches são de ótima qualidade e o preço é justo."</p>
+              <p className="text-muted-foreground mb-4">"Atendimento nota 10! O combo família é perfeito para reuniões em casa. Os lanches são de ótima qualidade e o preço é justo."</p>
               <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-neutral-light flex items-center justify-center mr-3">
-                  <span className="font-medium text-neutral-dark">PL</span>
+                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mr-3">
+                  <span className="font-medium text-muted-foreground">PL</span>
                 </div>
                 <div>
-                  <h4 className="font-medium">Pedro L.</h4>
-                  <p className="text-xs text-neutral">Cliente desde 2020</p>
+                  <h4 className="font-medium text-card-foreground">Pedro L.</h4>
+                  <p className="text-xs text-muted-foreground">Cliente desde 2020</p>
                 </div>
               </div>
             </div>
@@ -300,23 +298,23 @@ const Home = () => {
 
       {/* Promotion Products Section (se existir na página) */}
       {availablePromotionProducts && availablePromotionProducts.length > 0 && (
-        <section className="py-12">
+        <section className="py-12 bg-muted">
           <div className="container mx-auto px-4">
-            <h2 className="text-2xl font-bold mb-2 text-center">Promoções</h2>
-            <p className="text-center text-neutral mb-8">Aproveite os melhores preços</p>
+            <h2 className="text-2xl font-bold mb-2 text-center text-foreground">Promoções</h2>
+            <p className="text-center text-muted-foreground mb-8">Aproveite os melhores preços</p>
             
             {promotionsLoading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(3)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md h-96 animate-pulse">
-                    <div className="w-full h-48 bg-gray-200"></div>
+                  <div key={i} className="bg-card rounded-xl overflow-hidden shadow-md h-96 animate-pulse">
+                    <div className="w-full h-48 bg-muted"></div>
                     <div className="p-4">
-                      <div className="h-5 bg-gray-200 rounded w-3/4 mb-4"></div>
-                      <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
-                      <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                      <div className="h-5 bg-muted rounded w-3/4 mb-4"></div>
+                      <div className="h-4 bg-muted rounded w-full mb-2"></div>
+                      <div className="h-4 bg-muted rounded w-2/3 mb-4"></div>
                       <div className="flex justify-between items-center">
-                        <div className="h-6 bg-gray-200 rounded w-1/4"></div>
-                        <div className="h-10 bg-gray-200 rounded w-1/4"></div>
+                        <div className="h-6 bg-muted rounded w-1/4"></div>
+                        <div className="h-10 bg-muted rounded w-1/4"></div>
                       </div>
                     </div>
                   </div>
