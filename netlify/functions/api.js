@@ -1207,6 +1207,19 @@ exports.handler = async (event, context) => {
         const filteredCategories = categories.filter(c => c.id !== categoryId);
         console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Categorias após filtro: ${filteredCategories.length} (removidas: ${categories.length - filteredCategories.length})`);
         
+        // Verificar se a lista ficaria vazia após a exclusão
+        if (filteredCategories.length === 0) {
+          console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Lista de categorias ficaria vazia, adicionando placeholder');
+          // JSONBin não aceita arrays vazios, então vamos adicionar uma categoria placeholder
+          filteredCategories.push({
+            id: 0,
+            name: "Categoria Placeholder",
+            description: "Esta é uma categoria placeholder que pode ser excluída",
+            imageUrl: ""
+          });
+          console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Adicionada categoria placeholder para evitar bin vazio');
+        }
+        
         // 4. Atualizar dados
         let updateResponse;
         try {
