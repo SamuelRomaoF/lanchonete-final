@@ -2,10 +2,10 @@
 // Usando JSONBin.io para armazenamento persistente
 const JSONBIN_API_KEY = '$2a$10$x1g/gJkm9BCXgqeOEyIF1exCgqGeelU6NbZBMYN0eAbXmfpDH74.y'; // API key para JSONBin.io
 const BINS = {
-  categories: '682162cf8561e97a5012185b', // ID do bin para categorias
-  products: '682162fc8960c979a597b1f3',   // ID do bin para produtos
-  featured: '682162fe8960c979a597b1f7',   // ID do bin para produtos em destaque
-  promotions: '682163018561e97a50121874',  // ID do bin para produtos em promoção
+  categories: '6829ec088561e97a50169220', // ID do bin para categorias
+  products: '6829ec088a456b7966a06ca8',   // ID do bin para produtos
+  featured: '6829ec098a456b7966a06caa',   // ID do bin para produtos em destaque
+  promotions: '6829ec098a456b7966a06cac',  // ID do bin para produtos em promoção
   users: '682164e48a456b79669bf1ef'  // ID do bin para usuários
 };
 
@@ -424,12 +424,96 @@ async function forceRemoveItemWithZeroId(binId) {
   }
 }
 
+// Função específica para alternar a disponibilidade de um produto
+async function toggleProductAvailability(productId, newAvailability = null) {
+  try {
+    console.log(`Alterando disponibilidade do produto ${productId} para ${newAvailability === null ? 'inverso do atual' : newAvailability}`);
+    
+    // Buscar todos os produtos
+    const products = await fetchFromBin(BINS.products);
+    
+    // Encontrar o produto pelo ID
+    const productIndex = products.findIndex(p => p.id === productId);
+    
+    if (productIndex === -1) {
+      console.error(`Produto com ID ${productId} não encontrado`);
+      return {
+        success: false,
+        message: 'Produto não encontrado'
+      };
+    }
+    
+    // Obter o produto
+    const product = products[productIndex];
+    
+    // Se newAvailability não for especificado, inverter o valor atual
+    const updatedAvailability = newAvailability !== null 
+      ? newAvailability 
+      : !product.available;
+    
+    console.log(`Alterando disponibilidade do produto "${product.name}" de ${product.available} para ${updatedAvailability}`);
+    
+    // Atualizar a disponibilidade
+    products[productIndex] = {
+      ...product,
+      available: updatedAvailability
+    };
+    
+    // Salvar de volta no bin
+    const success = await updateBin(BINS.products, products);
+    
+    if (!success) {
+      console.error('Falha ao atualizar disponibilidade do produto');
+      return {
+        success: false,
+        message: 'Falha ao atualizar disponibilidade'
+      };
+    }
+    
+    // Também precisamos atualizar o produto em outros bins se ele estiver lá
+    
+    // Verificar se o produto está em destaque
+    if (product.isFeatured) {
+      const featuredProducts = await fetchFromBin(BINS.featured);
+      const featuredIndex = featuredProducts.findIndex(p => p.id === productId);
+      
+      if (featuredIndex !== -1) {
+        featuredProducts[featuredIndex].available = updatedAvailability;
+        await updateBin(BINS.featured, featuredProducts);
+      }
+    }
+    
+    // Verificar se o produto está em promoção
+    if (product.isPromotion) {
+      const promotionProducts = await fetchFromBin(BINS.promotions);
+      const promotionIndex = promotionProducts.findIndex(p => p.id === productId);
+      
+      if (promotionIndex !== -1) {
+        promotionProducts[promotionIndex].available = updatedAvailability;
+        await updateBin(BINS.promotions, promotionProducts);
+      }
+    }
+    
+    return {
+      success: true,
+      product: products[productIndex],
+      message: `Produto ${updatedAvailability ? 'ativado' : 'desativado'} com sucesso`
+    };
+  } catch (error) {
+    console.error('Erro ao alternar disponibilidade do produto:', error);
+    return {
+      success: false,
+      message: 'Erro ao processar a solicitação'
+    };
+  }
+}
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
     'Content-Type': 'application/json'
   };
 
@@ -1526,6 +1610,59 @@ exports.handler = async (event, context) => {
           body: JSON.stringify({ error: 'Dados inválidos', details: err.message })
         };
       }
+    }
+
+    // Endpoint para gerenciar disponibilidade de produtos
+    if (path.match(/^\/api\/products\/\d+\/availability$/)) {
+      // Este endpoint alterna a disponibilidade de um produto
+      
+      // Verificar se o método é PATCH
+      if (event.httpMethod !== 'PATCH') {
+        return {
+          statusCode: 405,
+          headers,
+          body: JSON.stringify({ message: 'Método não permitido' })
+        };
+      }
+      
+      // Extrair ID do produto
+      const idInfo = extractAndValidateId(path);
+      
+      if (!idInfo.isValid) {
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ message: 'ID de produto inválido' })
+        };
+      }
+      
+      // Parse do corpo da requisição
+      let newAvailability = null;
+      try {
+        const body = JSON.parse(event.body || '{}');
+        if (body.available !== undefined) {
+          newAvailability = !!body.available;
+        }
+      } catch (error) {
+        console.error('Erro ao parsear corpo da requisição:', error);
+      }
+      
+      // Alternar disponibilidade
+      const result = await toggleProductAvailability(idInfo.id, newAvailability);
+      
+      if (!result.success) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ message: result.message })
+        };
+      }
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(result)
+      };
     }
 
     // Default case: Path not found

@@ -33,6 +33,10 @@ const Home = () => {
     queryKey: ['/api/products/promotions'],
   });
 
+  // Filtrar apenas produtos disponíveis
+  const availableFeaturedProducts = featuredProducts?.filter(product => product.available === true);
+  const availablePromotionProducts = promotionProducts?.filter(product => product.available === true);
+
   if (categoriesError || productsError || promotionsError) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -125,19 +129,25 @@ const Home = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {featuredProducts && featuredProducts.map((product) => (
-                <ProductCard 
-                  key={product.id}
-                  id={product.id}
-                  name={product.name}
-                  description={product.description || ""}
-                  price={product.price}
-                  oldPrice={product.oldPrice}
-                  imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
-                  isFeatured={product.isFeatured}
-                  isPromotion={product.isPromotion}
-                />
-              ))}
+              {availableFeaturedProducts && availableFeaturedProducts.length > 0 ? (
+                availableFeaturedProducts.map((product) => (
+                  <ProductCard 
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    description={product.description || ""}
+                    price={product.price}
+                    oldPrice={product.oldPrice}
+                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    isFeatured={product.isFeatured}
+                    isPromotion={product.isPromotion}
+                  />
+                ))
+              ) : (
+                <div className="col-span-3 text-center py-12">
+                  <p className="text-muted-foreground">Nenhum produto em destaque disponível no momento</p>
+                </div>
+              )}
             </div>
           )}
           
@@ -287,6 +297,51 @@ const Home = () => {
           </div>
         </div>
       </section>
+
+      {/* Promotion Products Section (se existir na página) */}
+      {availablePromotionProducts && availablePromotionProducts.length > 0 && (
+        <section className="py-12">
+          <div className="container mx-auto px-4">
+            <h2 className="text-2xl font-bold mb-2 text-center">Promoções</h2>
+            <p className="text-center text-neutral mb-8">Aproveite os melhores preços</p>
+            
+            {promotionsLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(3)].map((_, i) => (
+                  <div key={i} className="bg-white rounded-xl overflow-hidden shadow-md h-96 animate-pulse">
+                    <div className="w-full h-48 bg-gray-200"></div>
+                    <div className="p-4">
+                      <div className="h-5 bg-gray-200 rounded w-3/4 mb-4"></div>
+                      <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                      <div className="h-4 bg-gray-200 rounded w-2/3 mb-4"></div>
+                      <div className="flex justify-between items-center">
+                        <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+                        <div className="h-10 bg-gray-200 rounded w-1/4"></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {availablePromotionProducts.map((product) => (
+                  <ProductCard 
+                    key={product.id}
+                    id={product.id}
+                    name={product.name}
+                    description={product.description || ""}
+                    price={product.price}
+                    oldPrice={product.oldPrice}
+                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    isFeatured={product.isFeatured}
+                    isPromotion={product.isPromotion}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
     </div>
   );
 };

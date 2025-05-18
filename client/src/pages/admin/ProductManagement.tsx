@@ -15,7 +15,7 @@ import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Category, Product } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
@@ -191,6 +191,31 @@ const ProductManagement = () => {
     },
   });
   
+  // Mutation para alternar disponibilidade do produto
+  const toggleAvailabilityMutation = useMutation({
+    mutationFn: ({ id, available }: { id: number; available: boolean }) => {
+      return apiRequest("PATCH", `/api/products/${id}/availability`, { available });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/products'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products/featured'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/products/promotions'] });
+      
+      toast({
+        title: data.product.available ? "Produto ativado" : "Produto desativado",
+        description: data.message,
+      });
+    },
+    onError: (error) => {
+      console.error("Erro ao alternar disponibilidade do produto:", error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar disponibilidade do produto. Tente novamente.",
+        variant: "destructive",
+      });
+    },
+  });
+  
   // Filtragem de produtos
   const filteredProducts = products?.filter((product) => 
     product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -227,6 +252,14 @@ const ProductManagement = () => {
         description: "O produto está sendo excluído...",
       });
     }
+  };
+  
+  // Função para alternar disponibilidade
+  const handleToggleAvailability = (product: Product) => {
+    toggleAvailabilityMutation.mutate({
+      id: product.id,
+      available: !product.available
+    });
   };
   
   // Funções para abrir modais
@@ -308,6 +341,7 @@ const ProductManagement = () => {
                 <TableHead>Categoria</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-center">Disponibilidade</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -366,6 +400,25 @@ const ProductManagement = () => {
                       <Badge variant={product.available ? "default" : "secondary"} className={product.available ? "bg-green-500" : "bg-gray-500"}>
                         {product.available ? "Disponível" : "Indisponível"}
                       </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <div className="flex items-center justify-center">
+                      <Switch 
+                        checked={product.available}
+                        onCheckedChange={() => handleToggleAvailability(product)}
+                        aria-label={product.available ? "Disponível" : "Indisponível"}
+                      />
+                      <span className="ml-2 text-sm">
+                        {product.available ? 
+                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                            <Eye className="h-3 w-3 mr-1" /> Visível
+                          </Badge> : 
+                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                            <EyeOff className="h-3 w-3 mr-1" /> Oculto
+                          </Badge>
+                        }
+                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
