@@ -877,9 +877,9 @@ exports.handler = async (event, context) => {
 
     // Implementação da rota de check-reset
     if ((path === '/queue/check-reset' || path === '/api/queue/check-reset') && event.httpMethod === 'GET') {
-      console.log('Processando requisição para check-reset');
+      console.log('NETLIFY DEBUG: Processando requisição para check-reset');
       
-      // Responder com formato esperado pelo frontend
+      // Garantir que enviamos um JSON válido
       const responseData = {
         success: true,
         reset: false,
@@ -1113,174 +1113,227 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // DELETE - Excluir produto (VERSÃO SIMPLIFICADA)
-    if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
-      try {
-        console.log('NETLIFY DEBUG: Tentando excluir produto com caminho:', path);
-        
-        // Extrair e validar ID usando o helper
-        const idInfo = extractAndValidateId(path);
-        
-        if (!idInfo.isValid) {
-          console.log('ID do produto inválido:', idInfo.idStr);
-          return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'ID de produto inválido' })
-          };
-        }
-        
-        const productId = idInfo.id; // Usar o ID já convertido para número
-        console.log('NETLIFY DEBUG: ID do produto a excluir:', productId, 'tipo:', typeof productId);
-        
-        // Buscar produtos existentes
-        let products = await fetchFromBin(BINS.products);
-        console.log(`NETLIFY DEBUG: Total de ${products.length} produtos encontrados`);
-        
-        // Verificar se products é um array válido
-        if (!Array.isArray(products)) {
-          console.error('NETLIFY DEBUG: Dados de produtos não é um array!');
-          products = [];
-        }
-        
-        // VERSÃO SIMPLIFICADA: Filtrar o produto a ser removido
-        const filteredProducts = products.filter(p => p.id !== productId);
-        console.log(`NETLIFY DEBUG: Após filtrar, restam ${filteredProducts.length} produtos`);
-        
-        // Atualizar o bin com a versão filtrada
-        const success = await updateBin(BINS.products, filteredProducts);
-        
-        if (!success) {
-          console.error('NETLIFY DEBUG: Falha ao atualizar produtos após exclusão');
-          return {
-            statusCode: 500,
-            headers,
-            body: JSON.stringify({ error: 'Falha ao excluir produto' })
-          };
-        }
-        
-        console.log('NETLIFY DEBUG: Produto excluído da lista principal com sucesso');
-        
-        // Também remover das listas especiais se necessário
-        try {
-          // Lista de destaque
-          let featuredProducts = await fetchFromBin(BINS.featured);
-          if (Array.isArray(featuredProducts)) {
-            const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
-            if (filteredFeatured.length !== featuredProducts.length) {
-              console.log('NETLIFY DEBUG: Removendo produto da lista de destaques');
-              await updateBin(BINS.featured, filteredFeatured);
-            }
-          }
-          
-          // Lista de promoções
-          let promotionProducts = await fetchFromBin(BINS.promotions);
-          if (Array.isArray(promotionProducts)) {
-            const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
-            if (filteredPromotions.length !== promotionProducts.length) {
-              console.log('NETLIFY DEBUG: Removendo produto da lista de promoções');
-              await updateBin(BINS.promotions, filteredPromotions);
-            }
-          }
-        } catch (err) {
-          console.error('NETLIFY DEBUG: Erro ao atualizar listas especiais:', err);
-          // Continuamos mesmo com erro nas listas especiais
-        }
-        
-        // Forçar o frontend a recarregar dados
-        return {
-          statusCode: 200,
-          headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          },
-          body: JSON.stringify({ 
-            success: true, 
-            message: 'Produto excluído com sucesso',
-            timestamp: Date.now()
-          })
-        };
-      } catch (err) {
-        console.error('NETLIFY DEBUG: Erro crítico ao excluir produto:', err);
-        return {
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({ error: 'Erro ao excluir produto', details: err.message })
-        };
-      }
-    }
-
-    // DELETE - Excluir categoria (VERSÃO SIMPLIFICADA)
+    // DELETE - Excluir categoria (VERSÃO ULTRA SIMPLIFICADA)
     if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
-        console.log('NETLIFY DEBUG: Tentando excluir categoria com caminho:', path);
+        console.log('NETLIFY DEBUG: Tentando excluir categoria [ULTRA SIMPLES]');
         
-        // Extrair e validar ID usando o helper
-        const idInfo = extractAndValidateId(path);
+        // Extrair ID da URL
+        const parts = path.split('/');
+        const idStr = parts[parts.length - 1];
+        const categoryId = parseInt(idStr, 10);
         
-        if (!idInfo.isValid) {
-          console.log('ID da categoria inválido:', idInfo.idStr);
+        console.log('NETLIFY DEBUG: ID da categoria a excluir:', categoryId);
+        
+        // Usar o método mais direto possível
+        try {
+          // 1. Buscar dados
+          const response = await fetch(`https://api.jsonbin.io/v3/b/${BINS.categories}/latest`, {
+            method: 'GET',
+            headers: {
+              'X-Master-Key': JSONBIN_API_KEY
+            }
+          });
+          
+          if (!response.ok) {
+            console.error('NETLIFY DEBUG: Falha ao buscar categorias:', await response.text());
+            throw new Error('Falha ao buscar categorias');
+          }
+          
+          const data = await response.json();
+          const categories = data.record || [];
+          
+          // 2. Filtrar categoria
+          const filteredCategories = categories.filter(c => c.id !== categoryId);
+          
+          console.log(`NETLIFY DEBUG: Filtrando categoria ${categoryId}, original: ${categories.length}, filtrado: ${filteredCategories.length}`);
+          
+          // 3. Atualizar bin com método direto
+          const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.categories}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Master-Key': JSONBIN_API_KEY
+            },
+            body: JSON.stringify(filteredCategories)
+          });
+          
+          if (!updateResponse.ok) {
+            console.error('NETLIFY DEBUG: Falha ao atualizar categorias:', await updateResponse.text());
+            throw new Error('Falha ao atualizar categorias');
+          }
+          
+          console.log('NETLIFY DEBUG: Categoria excluída com sucesso');
+          
           return {
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ error: 'ID de categoria inválido' })
+            statusCode: 200,
+            headers: {
+              ...headers,
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            },
+            body: JSON.stringify({ 
+              success: true, 
+              message: 'Categoria excluída com sucesso',
+              timestamp: Date.now()
+            })
           };
-        }
-        
-        const categoryId = idInfo.id; // Usar o ID já convertido para número
-        console.log('NETLIFY DEBUG: ID da categoria a excluir:', categoryId, 'tipo:', typeof categoryId);
-        
-        // Buscar categorias existentes
-        let categories = await fetchFromBin(BINS.categories);
-        console.log(`NETLIFY DEBUG: Total de ${categories.length} categorias encontradas`);
-        
-        // Verificar se categories é um array válido
-        if (!Array.isArray(categories)) {
-          console.error('NETLIFY DEBUG: Dados de categorias não é um array!');
-          categories = [];
-        }
-        
-        // VERSÃO SIMPLIFICADA: Filtrar a categoria a ser removida
-        const filteredCategories = categories.filter(c => c.id !== categoryId);
-        console.log(`NETLIFY DEBUG: Após filtrar, restam ${filteredCategories.length} categorias`);
-        
-        // Atualizar o bin com a versão filtrada
-        const success = await updateBin(BINS.categories, filteredCategories);
-        
-        if (!success) {
-          console.error('NETLIFY DEBUG: Falha ao atualizar categorias após exclusão');
+        } catch (innerError) {
+          console.error('NETLIFY DEBUG: Erro interno na operação de exclusão:', innerError);
           return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: 'Falha ao excluir categoria' })
+            body: JSON.stringify({ 
+              error: 'Erro ao excluir categoria', 
+              details: innerError.message 
+            })
           };
         }
-        
-        console.log('NETLIFY DEBUG: Categoria excluída com sucesso');
-        
-        // Forçar o frontend a recarregar dados
-        return {
-          statusCode: 200,
-          headers: {
-            ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          },
-          body: JSON.stringify({ 
-            success: true, 
-            message: 'Categoria excluída com sucesso',
-            timestamp: Date.now()
-          })
-        };
       } catch (err) {
         console.error('NETLIFY DEBUG: Erro crítico ao excluir categoria:', err);
         return {
           statusCode: 500,
           headers,
           body: JSON.stringify({ error: 'Erro ao excluir categoria', details: err.message })
+        };
+      }
+    }
+
+    // DELETE - Excluir produto (VERSÃO ULTRA SIMPLIFICADA)
+    if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
+      try {
+        console.log('NETLIFY DEBUG: Tentando excluir produto [ULTRA SIMPLES]');
+        
+        // Extrair ID da URL
+        const parts = path.split('/');
+        const idStr = parts[parts.length - 1];
+        const productId = parseInt(idStr, 10);
+        
+        console.log('NETLIFY DEBUG: ID do produto a excluir:', productId);
+        
+        // Usar o método mais direto possível
+        try {
+          // 1. Buscar dados
+          const response = await fetch(`https://api.jsonbin.io/v3/b/${BINS.products}/latest`, {
+            method: 'GET',
+            headers: {
+              'X-Master-Key': JSONBIN_API_KEY
+            }
+          });
+          
+          if (!response.ok) {
+            console.error('NETLIFY DEBUG: Falha ao buscar produtos:', await response.text());
+            throw new Error('Falha ao buscar produtos');
+          }
+          
+          const data = await response.json();
+          const products = data.record || [];
+          
+          // 2. Filtrar produto
+          const filteredProducts = products.filter(p => p.id !== productId);
+          
+          console.log(`NETLIFY DEBUG: Filtrando produto ${productId}, original: ${products.length}, filtrado: ${filteredProducts.length}`);
+          
+          // 3. Atualizar bin com método direto
+          const updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.products}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Master-Key': JSONBIN_API_KEY
+            },
+            body: JSON.stringify(filteredProducts)
+          });
+          
+          if (!updateResponse.ok) {
+            console.error('NETLIFY DEBUG: Falha ao atualizar produtos:', await updateResponse.text());
+            throw new Error('Falha ao atualizar produtos');
+          }
+          
+          // 4. Atualizar listas especiais da maneira mais simples
+          try {
+            // Featured
+            const featuredResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.featured}/latest`, {
+              method: 'GET',
+              headers: {
+                'X-Master-Key': JSONBIN_API_KEY
+              }
+            });
+            
+            if (featuredResponse.ok) {
+              const featuredData = await featuredResponse.json();
+              const featuredProducts = featuredData.record || [];
+              const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
+              
+              if (filteredFeatured.length !== featuredProducts.length) {
+                await fetch(`https://api.jsonbin.io/v3/b/${BINS.featured}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_API_KEY
+                  },
+                  body: JSON.stringify(filteredFeatured)
+                });
+              }
+            }
+            
+            // Promotions
+            const promotionsResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.promotions}/latest`, {
+              method: 'GET',
+              headers: {
+                'X-Master-Key': JSONBIN_API_KEY
+              }
+            });
+            
+            if (promotionsResponse.ok) {
+              const promotionsData = await promotionsResponse.json();
+              const promotionProducts = promotionsData.record || [];
+              const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
+              
+              if (filteredPromotions.length !== promotionProducts.length) {
+                await fetch(`https://api.jsonbin.io/v3/b/${BINS.promotions}`, {
+                  method: 'PUT',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': JSONBIN_API_KEY
+                  },
+                  body: JSON.stringify(filteredPromotions)
+                });
+              }
+            }
+          } catch (listError) {
+            console.error('NETLIFY DEBUG: Erro ao atualizar listas especiais, continuando mesmo assim:', listError);
+          }
+          
+          console.log('NETLIFY DEBUG: Produto excluído com sucesso');
+          
+          return {
+            statusCode: 200,
+            headers: {
+              ...headers,
+              'Cache-Control': 'no-cache, no-store, must-revalidate'
+            },
+            body: JSON.stringify({ 
+              success: true, 
+              message: 'Produto excluído com sucesso',
+              timestamp: Date.now()
+            })
+          };
+        } catch (innerError) {
+          console.error('NETLIFY DEBUG: Erro interno na operação de exclusão:', innerError);
+          return {
+            statusCode: 500,
+            headers,
+            body: JSON.stringify({ 
+              error: 'Erro ao excluir produto', 
+              details: innerError.message 
+            })
+          };
+        }
+      } catch (err) {
+        console.error('NETLIFY DEBUG: Erro crítico ao excluir produto:', err);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao excluir produto', details: err.message })
         };
       }
     }
