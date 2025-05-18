@@ -1241,7 +1241,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // DELETE - Excluir produto (ABORDAGEM DIRETA)
+    // DELETE - Excluir produto (ABORDAGEM COM VERIFICAÇÃO DE BIN)
     if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
         console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Iniciando exclusão de produto');
@@ -1253,145 +1253,101 @@ exports.handler = async (event, context) => {
         
         console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: ID do produto a excluir: ${productId}`);
         
-        // Processo passo a passo para depuração completa
+        // VERIFICAR IDs DOS BINS EXPLICITAMENTE 
+        if (!BINS.products) {
+          console.error('NETLIFY DEBUG [EXCLUSÃO REAL]: ERRO: ID do bin de produtos está vazio!');
+          throw new Error('Configuração incorreta: ID do bin de produtos não definido');
+        }
         
-        // 1. Buscar dados atuais
-        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Buscando dados do produto do bin: ${BINS.products}`);
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Verificação de bins:`);
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: BINS.products = ${BINS.products}`);
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: BINS.featured = ${BINS.featured}`);
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: BINS.promotions = ${BINS.promotions}`);
         
-        let fetchResponse;
-        try {
-          fetchResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.products}/latest`, {
-            method: 'GET',
-            headers: {
-              'X-Master-Key': JSONBIN_API_KEY
-            }
-          });
-          
-          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Status da resposta de busca: ${fetchResponse.status}`);
-          
-          if (!fetchResponse.ok) {
-            const errorText = await fetchResponse.text();
-            console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro na resposta: ${errorText}`);
-            throw new Error(`Falha ao buscar produtos: ${fetchResponse.status} - ${errorText}`);
+        // Processo passo a passo com manipulação de exceções separada
+        
+        // 1. Buscar dados do produto principal
+        const productsUrl = `https://api.jsonbin.io/v3/b/${BINS.products}/latest`;
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: URL de busca: ${productsUrl}`);
+        
+        // Solução de contorno para sistemas Netlify
+        const opts = {
+          method: 'GET',
+          headers: {
+            'X-Master-Key': JSONBIN_API_KEY
           }
-        } catch (fetchError) {
-          console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro na requisição fetch: ${fetchError.message}`);
-          throw new Error(`Erro de rede ao buscar produtos: ${fetchError.message}`);
-        }
+        };
         
-        // 2. Parsear resposta
-        let responseData;
-        let products;
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Fazendo request com headers:`, JSON.stringify(opts.headers));
+        
+        // Fazer a solicitação DIRETAMENTE sem usar funções auxiliares
+        let products = [];
+        let fetchError = null;
+        
         try {
-          responseData = await fetchResponse.json();
-          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Dados recebidos, metadata: ${JSON.stringify(responseData.metadata)}`);
-          products = responseData.record || [];
-          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Total de produtos encontrados: ${products.length}`);
-        } catch (parseError) {
-          console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro ao parsear resposta: ${parseError.message}`);
-          throw new Error(`Erro ao processar dados: ${parseError.message}`);
-        }
-        
-        // 3. Filtrar produtos
-        const filteredProducts = products.filter(p => p.id !== productId);
-        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produtos após filtro: ${filteredProducts.length} (removidos: ${products.length - filteredProducts.length})`);
-        
-        // 4. Atualizar dados
-        let updateResponse;
-        try {
-          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualizando bin com ${filteredProducts.length} produtos`);
-          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Exemplo de dados a enviar: ${JSON.stringify(filteredProducts.slice(0, 1))}`);
+          const fetchResponse = await fetch(productsUrl, opts);
+          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Status da resposta: ${fetchResponse.status}`);
           
-          updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.products}`, {
+          if (fetchResponse.ok) {
+            const data = await fetchResponse.json();
+            products = data.record || [];
+            console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produtos carregados: ${products.length}`);
+          } else {
+            const errText = await fetchResponse.text();
+            fetchError = `Status ${fetchResponse.status}: ${errText}`;
+            console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro na busca: ${fetchError}`);
+          }
+        } catch (e) {
+          fetchError = e.message;
+          console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Exceção na busca: ${fetchError}`);
+        }
+        
+        if (fetchError) {
+          throw new Error(`Falha ao carregar produtos: ${fetchError}`);
+        }
+        
+        // 2. Filtrar o produto
+        const filteredProducts = products.filter(p => p.id !== productId);
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Removido ${products.length - filteredProducts.length} produto(s)`);
+        
+        if (products.length === filteredProducts.length) {
+          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: AVISO: Produto com ID ${productId} não encontrado!`);
+          // Não falhar, apenas retornar sucesso
+        }
+        
+        // 3. Atualizar produtos (usando abordagem mais simples)
+        let updateError = null;
+        try {
+          const updateUrl = `https://api.jsonbin.io/v3/b/${BINS.products}`;
+          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: URL de atualização: ${updateUrl}`);
+          
+          const updateOpts = {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
               'X-Master-Key': JSONBIN_API_KEY
             },
             body: JSON.stringify(filteredProducts)
-          });
+          };
           
-          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Status da resposta de atualização: ${updateResponse.status}`);
-          
+          const updateResponse = await fetch(updateUrl, updateOpts);
           if (!updateResponse.ok) {
-            const errorText = await updateResponse.text();
-            console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro na atualização: ${errorText}`);
-            throw new Error(`Falha ao atualizar produtos: ${updateResponse.status} - ${errorText}`);
+            const errText = await updateResponse.text();
+            updateError = `Status ${updateResponse.status}: ${errText}`;
+            console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro na atualização: ${updateError}`);
+          } else {
+            console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produtos atualizados com sucesso!`);
           }
-          
-          // Verificar resposta da atualização
-          const updateResult = await updateResponse.json();
-          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualização bem-sucedida: ${JSON.stringify(updateResult.metadata)}`);
-          
-          // 5. Também atualizar listas especiais
-          // Atualizar featured
-          try {
-            const featuredResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.featured}/latest`, { 
-              headers: { 'X-Master-Key': JSONBIN_API_KEY } 
-            });
-            
-            if (featuredResponse.ok) {
-              const featuredData = await featuredResponse.json();
-              const featuredProducts = featuredData.record || [];
-              const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
-              
-              if (filteredFeatured.length !== featuredProducts.length) {
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualizando produto na lista de destaques`);
-                
-                await fetch(`https://api.jsonbin.io/v3/b/${BINS.featured}`, {
-                  method: 'PUT',
-            headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_API_KEY
-                  },
-                  body: JSON.stringify(filteredFeatured)
-                });
-                
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produto removido dos destaques`);
-              }
-            }
-          } catch (featuredError) {
-            // Apenas log, não falhar a operação principal
-            console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro ao atualizar destaques: ${featuredError.message}`);
-          }
-          
-          // Atualizar promotions
-          try {
-            const promotionsResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.promotions}/latest`, { 
-              headers: { 'X-Master-Key': JSONBIN_API_KEY } 
-            });
-            
-            if (promotionsResponse.ok) {
-              const promotionsData = await promotionsResponse.json();
-              const promotionProducts = promotionsData.record || [];
-              const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
-              
-              if (filteredPromotions.length !== promotionProducts.length) {
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualizando produto na lista de promoções`);
-                
-                await fetch(`https://api.jsonbin.io/v3/b/${BINS.promotions}`, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_API_KEY
-                  },
-                  body: JSON.stringify(filteredPromotions)
-                });
-                
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produto removido das promoções`);
-              }
-            }
-          } catch (promotionsError) {
-            // Apenas log, não falhar a operação principal
-            console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro ao atualizar promoções: ${promotionsError.message}`);
-          }
-        } catch (updateError) {
-          console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro ao atualizar dados: ${updateError.message}`);
-          throw new Error(`Falha na atualização: ${updateError.message}`);
+        } catch (e) {
+          updateError = e.message;
+          console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Exceção na atualização: ${updateError}`);
         }
         
-        // 6. Retornar sucesso
-        console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Produto realmente excluído com sucesso!');
+        if (updateError) {
+          throw new Error(`Falha ao atualizar produtos: ${updateError}`);
+        }
+        
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produto excluído com sucesso!`);
         
         return {
           statusCode: 200,
