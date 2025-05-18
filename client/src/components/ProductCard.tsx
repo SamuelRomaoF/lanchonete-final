@@ -25,19 +25,11 @@ const ProductCard = ({
 }: ProductCardProps) => {
   return (
     <div className="bg-white rounded-xl overflow-hidden shadow-md hover:shadow-lg card-transition">
-      <div className="relative h-48 w-full overflow-hidden rounded-t-lg">
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={name}
-            className="h-full w-full object-cover transition-all duration-300 group-hover:scale-110"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gray-200">
-            <span className="text-gray-400">Imagem não disponível</span>
-          </div>
-        )}
-      </div>
+      <img 
+        src={imageUrl} 
+        alt={name} 
+        className="w-full h-48 object-cover"
+      />
       
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">

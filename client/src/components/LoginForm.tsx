@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
 import { z } from "zod";
@@ -22,6 +23,7 @@ const loginSchema = z.object({
   password: z
     .string()
     .min(1, "Senha é obrigatória"),
+  remember: z.boolean().optional(),
 });
 
 type LoginFormValues = z.infer<typeof loginSchema>;
@@ -38,13 +40,30 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
     defaultValues: {
       email: "",
       password: "",
+      remember: false,
     },
   });
+
+  // Verificar se há dados salvos no localStorage
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    if (savedEmail) {
+      form.setValue('email', savedEmail);
+      form.setValue('remember', true);
+    }
+  }, [form]);
   
   const onSubmit = async (data: LoginFormValues) => {
     setIsLoading(true);
     
     try {
+      // Salvar email no localStorage se "Lembrar-me" estiver marcado
+      if (data.remember) {
+        localStorage.setItem('rememberedEmail', data.email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+
       // Tentativa de login
       const user = await login(data.email, data.password);
       
@@ -89,7 +108,6 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
                 <Input
                   type="email"
                   placeholder="Seu email"
-                  autoComplete="off"
                   {...field}
                 />
               </FormControl>
@@ -129,6 +147,29 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
             </FormItem>
           )}
         />
+        
+        <div className="flex items-center">
+          <FormField
+            control={form.control}
+            name="remember"
+            render={({ field }) => (
+              <FormItem className="flex items-center space-x-2">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    id="remember"
+                  />
+                </FormControl>
+                <div className="space-y-1 leading-none">
+                  <FormLabel htmlFor="remember" className="text-sm">
+                    Lembrar-me
+                  </FormLabel>
+                </div>
+              </FormItem>
+            )}
+          />
+        </div>
         
         <Button 
           type="submit" 

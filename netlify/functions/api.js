@@ -881,17 +881,17 @@ exports.handler = async (event, context) => {
       
       try {
         // Garantir que enviamos um JSON válido
-        const responseData = {
-          success: true,
-          reset: false,
-          timestamp: new Date().toISOString()
-        };
-        
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify(responseData)
-        };
+      const responseData = {
+        success: true,
+        reset: false,
+        timestamp: new Date().toISOString()
+      };
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify(responseData)
+      };
       } catch (err) {
         console.error('NETLIFY DEBUG: Erro no endpoint check-reset:', err);
         return {
@@ -1340,7 +1340,7 @@ exports.handler = async (event, context) => {
                 
                 await fetch(`https://api.jsonbin.io/v3/b/${BINS.featured}`, {
                   method: 'PUT',
-                  headers: {
+            headers: {
                     'Content-Type': 'application/json',
                     'X-Master-Key': JSONBIN_API_KEY
                   },
