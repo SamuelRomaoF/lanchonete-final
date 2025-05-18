@@ -9,6 +9,29 @@ const BINS = {
   users: '682164e48a456b79669bf1ef'  // ID do bin para usuários
 };
 
+// Verifica se todos os IDs dos bins estão definidos
+const areBinsConfigured = () => {
+  let missingBins = [];
+  
+  for (const [key, value] of Object.entries(BINS)) {
+    if (!value) {
+      missingBins.push(key);
+    }
+  }
+  
+  if (missingBins.length > 0) {
+    console.error(`ERRO DE CONFIGURAÇÃO: Os seguintes bins não estão configurados: ${missingBins.join(', ')}`);
+    return false;
+  }
+  
+  return true;
+};
+
+// Verifica a configuração de bins quando o arquivo é carregado
+console.log('Verificando configuração de BINS...');
+const binsConfigured = areBinsConfigured();
+console.log(`Configuração de BINS ${binsConfigured ? 'OK' : 'COM PROBLEMAS'}`);
+
 // Helper para extrair e validar IDs de produtos/categorias
 function extractAndValidateId(path) {
   const parts = path.split('/');
@@ -1132,6 +1155,18 @@ exports.handler = async (event, context) => {
       try {
         console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Iniciando exclusão de categoria');
         
+        // Verificar se os BINs estão configurados
+        if (!areBinsConfigured()) {
+          throw new Error('Configuração incorreta: Um ou mais IDs de bins não estão definidos');
+        }
+        
+        if (!BINS.categories) {
+          console.error('NETLIFY DEBUG [EXCLUSÃO REAL]: ERRO: ID do bin de categorias está vazio!');
+          throw new Error('Configuração incorreta: ID do bin de categorias não definido');
+        }
+        
+        console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Bin ID para categorias: ${BINS.categories}`);
+        
         // Extrair ID da URL
         const parts = path.split('/');
         const idStr = parts[parts.length - 1];
@@ -1187,6 +1222,10 @@ exports.handler = async (event, context) => {
         try {
           console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualizando bin com ${filteredCategories.length} categorias`);
           console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Exemplo de dados a enviar: ${JSON.stringify(filteredCategories.slice(0, 1))}`);
+          
+          if (!BINS.categories) {
+            throw new Error('ID do bin de categorias está vazio antes de atualizar!');
+          }
           
           updateResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.categories}`, {
             method: 'PUT',
@@ -1245,6 +1284,11 @@ exports.handler = async (event, context) => {
     if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
         console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Iniciando exclusão de produto');
+        
+        // Verificar se os BINs estão configurados
+        if (!areBinsConfigured()) {
+          throw new Error('Configuração incorreta: Um ou mais IDs de bins não estão definidos');
+        }
         
         // Extrair ID da URL
         const parts = path.split('/');
@@ -1318,6 +1362,10 @@ exports.handler = async (event, context) => {
         // 3. Atualizar produtos (usando abordagem mais simples)
         let updateError = null;
         try {
+          if (!BINS.products) {
+            throw new Error('ID do bin de produtos está vazio antes de atualizar!');
+          }
+          
           const updateUrl = `https://api.jsonbin.io/v3/b/${BINS.products}`;
           console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: URL de atualização: ${updateUrl}`);
           
