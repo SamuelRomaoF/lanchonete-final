@@ -1,9 +1,6 @@
 // API URL base, será substituída em produção pelo Netlify
 export const API_BASE_URL = import.meta.env.PROD ? '/.netlify/functions/api' : '/api';
 
-// Chave para o token de autenticação no localStorage
-const AUTH_TOKEN_KEY = 'fastlanche_auth_token';
-
 // Função de utilidade para fazer requisições à API
 export async function fetchFromApi(endpoint: string, options: RequestInit = {}) {
   // Remover prefixo '/api' duplicado caso exista
@@ -14,33 +11,15 @@ export async function fetchFromApi(endpoint: string, options: RequestInit = {}) 
   
   console.log(`Fazendo requisição para: ${url}`);
   
-  // Adicionar token de autenticação se disponível no localStorage
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  
-  // Criar objeto de headers
-  const requestHeaders = new Headers({
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-  });
-  
-  // Adicionar headers personalizados se fornecidos
-  if (options.headers) {
-    const customHeaders = new Headers(options.headers);
-    customHeaders.forEach((value, key) => {
-      requestHeaders.set(key, value);
-    });
-  }
-  
-  // Adicionar token de autenticação ao header se disponível
-  if (token) {
-    requestHeaders.set('Authorization', `Bearer ${token}`);
-  }
-  
   try {
     const response = await fetch(url, {
       ...options,
-      headers: requestHeaders,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        ...options.headers,
+      },
     });
     
     // Tratamento especial para DELETE: se for 404, tratamos como sucesso
