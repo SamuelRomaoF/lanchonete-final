@@ -15,7 +15,7 @@ import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Category, Product } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
@@ -341,7 +341,6 @@ const ProductManagement = () => {
                 <TableHead>Categoria</TableHead>
                 <TableHead>Preço</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-center">Disponibilidade</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -389,36 +388,11 @@ const ProductManagement = () => {
                     <div className="flex items-center space-x-2">
                       <Switch 
                         checked={product.available} 
-                        onCheckedChange={(checked) => {
-                          // Atualizar o status do produto
-                          updateProductMutation.mutate({ 
-                            id: product.id, 
-                            data: { ...product, available: checked } 
-                          });
-                        }}
+                        onCheckedChange={() => handleToggleAvailability(product)}
                       />
                       <Badge variant={product.available ? "default" : "secondary"} className={product.available ? "bg-green-500" : "bg-gray-500"}>
                         {product.available ? "Disponível" : "Indisponível"}
                       </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center">
-                      <Switch 
-                        checked={product.available}
-                        onCheckedChange={() => handleToggleAvailability(product)}
-                        aria-label={product.available ? "Disponível" : "Indisponível"}
-                      />
-                      <span className="ml-2 text-sm">
-                        {product.available ? 
-                          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                            <Eye className="h-3 w-3 mr-1" /> Visível
-                          </Badge> : 
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                            <EyeOff className="h-3 w-3 mr-1" /> Oculto
-                          </Badge>
-                        }
-                      </span>
                     </div>
                   </TableCell>
                   <TableCell className="text-right">

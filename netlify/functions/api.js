@@ -517,20 +517,22 @@ async function syncProductsAcrossBins() {
     // 1. Buscar todos os produtos da lista principal
     const mainProducts = await fetchFromBin(BINS.products);
     const validMainProducts = mainProducts.filter(p => p.id !== 0 && p.name !== "Placeholder");
-    const validProductIds = validMainProducts.map(p => p.id);
     
-    console.log(`Total de produtos válidos: ${validProductIds.length}`);
+    console.log(`Total de produtos válidos: ${validMainProducts.length}`);
     
-    // 2. Buscar e limpar lista de destaques
-    const featuredProducts = await fetchFromBin(BINS.featured);
-    let filteredFeatured = featuredProducts.filter(p => 
-      (p.id !== 0 && p.name !== "Placeholder" && validProductIds.includes(p.id)) || 
-      (p.id === 0 && p.name === "Placeholder") // manter placeholder se existir
-    );
+    // 2. Separar produtos em destaque e promoções
+    const productsInFeatured = validMainProducts.filter(p => p.isFeatured === true);
+    const productsInPromotion = validMainProducts.filter(p => p.isPromotion === true);
+    
+    console.log(`Produtos em destaque: ${productsInFeatured.length}`);
+    console.log(`Produtos em promoção: ${productsInPromotion.length}`);
+    
+    // 3. Atualizar lista de destaques
+    let finalFeaturedList = [...productsInFeatured];
     
     // Garantir que sempre haja pelo menos um item (pode ser placeholder)
-    if (filteredFeatured.length === 0) {
-      filteredFeatured.push({
+    if (finalFeaturedList.length === 0) {
+      finalFeaturedList.push({
         id: 0,
         name: "Placeholder",
         description: "Este é um produto placeholder que pode ser excluído",
@@ -544,19 +546,21 @@ async function syncProductsAcrossBins() {
       });
     }
     
-    await updateBin(BINS.featured, filteredFeatured);
-    console.log(`Lista de destaques atualizada: ${filteredFeatured.length} itens`);
+    // Garantir que todos os produtos em destaque tenham isFeatured definido como true
+    finalFeaturedList = finalFeaturedList.map(product => ({
+      ...product,
+      isFeatured: true
+    }));
     
-    // 3. Buscar e limpar lista de promoções
-    const promotionProducts = await fetchFromBin(BINS.promotions);
-    let filteredPromotion = promotionProducts.filter(p => 
-      (p.id !== 0 && p.name !== "Placeholder" && validProductIds.includes(p.id)) || 
-      (p.id === 0 && p.name === "Placeholder") // manter placeholder se existir
-    );
+    await updateBin(BINS.featured, finalFeaturedList);
+    console.log(`Lista de destaques atualizada: ${finalFeaturedList.length} itens`);
+    
+    // 4. Atualizar lista de promoções
+    let finalPromotionList = [...productsInPromotion];
     
     // Garantir que sempre haja pelo menos um item (pode ser placeholder)
-    if (filteredPromotion.length === 0) {
-      filteredPromotion.push({
+    if (finalPromotionList.length === 0) {
+      finalPromotionList.push({
         id: 0,
         name: "Placeholder",
         description: "Este é um produto placeholder que pode ser excluído",
@@ -570,8 +574,43 @@ async function syncProductsAcrossBins() {
       });
     }
     
-    await updateBin(BINS.promotions, filteredPromotion);
-    console.log(`Lista de promoções atualizada: ${filteredPromotion.length} itens`);
+    // Garantir que todos os produtos em promoção tenham isPromotion definido como true
+    finalPromotionList = finalPromotionList.map(product => ({
+      ...product,
+      isPromotion: true
+    }));
+    
+    await updateBin(BINS.promotions, finalPromotionList);
+    console.log(`Lista de promoções atualizada: ${finalPromotionList.length} itens`);
+    
+    // Verificar e atualizar a lista principal, se necessário
+    let needsMainUpdate = false;
+    
+    // Atualizar a lista principal para garantir consistência
+    for (let i = 0; i < mainProducts.length; i++) {
+      if (mainProducts[i].id !== 0 && mainProducts[i].name !== "Placeholder") {
+        // Verificar se o produto está marcado como destaque
+        const isInFeatured = finalFeaturedList.some(p => p.id === mainProducts[i].id);
+        if (isInFeatured && !mainProducts[i].isFeatured) {
+          mainProducts[i].isFeatured = true;
+          needsMainUpdate = true;
+          console.log(`Atualizando produto ${mainProducts[i].id} para isFeatured = true na lista principal`);
+        }
+        
+        // Verificar se o produto está marcado como promoção
+        const isInPromotion = finalPromotionList.some(p => p.id === mainProducts[i].id);
+        if (isInPromotion && !mainProducts[i].isPromotion) {
+          mainProducts[i].isPromotion = true;
+          needsMainUpdate = true;
+          console.log(`Atualizando produto ${mainProducts[i].id} para isPromotion = true na lista principal`);
+        }
+      }
+    }
+    
+    if (needsMainUpdate) {
+      await updateBin(BINS.products, mainProducts);
+      console.log('Lista principal atualizada para manter consistência');
+    }
     
     console.log('Sincronização entre bins concluída com sucesso');
     return true;
@@ -1611,10 +1650,11 @@ exports.handler = async (event, context) => {
         products[index] = updatedProduct;
         await updateBin(BINS.products, products);
         
-        // Sincronizar todos os bins para garantir consistência
+        // Realizar uma sincronização completa para garantir que os bins featured e promotions estejam atualizados
         await syncProductsAcrossBins();
         console.log('Produto sincronizado com todas as listas');
         
+        // Adicionar cabeçalhos anti-cache para garantir atualizações imediatas
         return {
           statusCode: 200,
           headers: {
