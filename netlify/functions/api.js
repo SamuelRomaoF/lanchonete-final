@@ -509,6 +509,78 @@ async function toggleProductAvailability(productId, newAvailability = null) {
   }
 }
 
+// Função para sincronizar produtos entre todos os bins
+async function syncProductsAcrossBins() {
+  try {
+    console.log('Iniciando sincronização de produtos entre todos os bins');
+    
+    // 1. Buscar todos os produtos da lista principal
+    const mainProducts = await fetchFromBin(BINS.products);
+    const validMainProducts = mainProducts.filter(p => p.id !== 0 && p.name !== "Placeholder");
+    const validProductIds = validMainProducts.map(p => p.id);
+    
+    console.log(`Total de produtos válidos: ${validProductIds.length}`);
+    
+    // 2. Buscar e limpar lista de destaques
+    const featuredProducts = await fetchFromBin(BINS.featured);
+    let filteredFeatured = featuredProducts.filter(p => 
+      (p.id !== 0 && p.name !== "Placeholder" && validProductIds.includes(p.id)) || 
+      (p.id === 0 && p.name === "Placeholder") // manter placeholder se existir
+    );
+    
+    // Garantir que sempre haja pelo menos um item (pode ser placeholder)
+    if (filteredFeatured.length === 0) {
+      filteredFeatured.push({
+        id: 0,
+        name: "Placeholder",
+        description: "Este é um produto placeholder que pode ser excluído",
+        price: 0,
+        imageUrl: "",
+        categoryId: null,
+        available: false,
+        isFeatured: true,
+        isPromotion: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+    
+    await updateBin(BINS.featured, filteredFeatured);
+    console.log(`Lista de destaques atualizada: ${filteredFeatured.length} itens`);
+    
+    // 3. Buscar e limpar lista de promoções
+    const promotionProducts = await fetchFromBin(BINS.promotions);
+    let filteredPromotion = promotionProducts.filter(p => 
+      (p.id !== 0 && p.name !== "Placeholder" && validProductIds.includes(p.id)) || 
+      (p.id === 0 && p.name === "Placeholder") // manter placeholder se existir
+    );
+    
+    // Garantir que sempre haja pelo menos um item (pode ser placeholder)
+    if (filteredPromotion.length === 0) {
+      filteredPromotion.push({
+        id: 0,
+        name: "Placeholder",
+        description: "Este é um produto placeholder que pode ser excluído",
+        price: 0,
+        imageUrl: "",
+        categoryId: null,
+        available: false,
+        isFeatured: false,
+        isPromotion: true,
+        createdAt: new Date().toISOString()
+      });
+    }
+    
+    await updateBin(BINS.promotions, filteredPromotion);
+    console.log(`Lista de promoções atualizada: ${filteredPromotion.length} itens`);
+    
+    console.log('Sincronização entre bins concluída com sucesso');
+    return true;
+  } catch (error) {
+    console.error('Erro ao sincronizar produtos entre bins:', error);
+    return false;
+  }
+}
+
 exports.handler = async (event, context) => {
   // Enable CORS
   const headers = {
@@ -755,37 +827,9 @@ exports.handler = async (event, context) => {
         
         console.log('Produto adicionado à lista principal, ID:', newId);
         
-        // Se o produto está marcado como featured, adicionar à lista de destaque
-        if (newProduct.isFeatured) {
-          const featuredProducts = await fetchFromBin(BINS.featured);
-          featuredProducts.push(newProduct);
-          
-          // Garantir que a lista de produtos em destaque não esteja vazia
-          if (!featuredProducts || !Array.isArray(featuredProducts) || featuredProducts.length === 0) {
-            console.log('Lista de destaques vazia ou inválida, criando nova lista com o produto atual');
-            await forceRewriteBin(BINS.featured, [newProduct]);
-          } else {
-            await forceRewriteBin(BINS.featured, featuredProducts);
-          }
-          
-          console.log('Produto adicionado aos destaques');
-        }
-        
-        // Se o produto está marcado como promotion, adicionar à lista de promoções
-        if (newProduct.isPromotion) {
-          const promotionProducts = await fetchFromBin(BINS.promotions);
-          
-          // Garantir que a lista de produtos em promoção não esteja vazia
-          if (!promotionProducts || !Array.isArray(promotionProducts) || promotionProducts.length === 0) {
-            console.log('Lista de promoções vazia ou inválida, criando nova lista com o produto atual');
-            await forceRewriteBin(BINS.promotions, [newProduct]);
-          } else {
-            promotionProducts.push(newProduct);
-            await forceRewriteBin(BINS.promotions, promotionProducts);
-          }
-          
-          console.log('Produto adicionado às promoções');
-        }
+        // Sincronizar todos os bins
+        await syncProductsAcrossBins();
+        console.log('Produto sincronizado com todas as listas');
         
         console.log('Produto criado com sucesso, ID:', newId);
         
@@ -914,10 +958,23 @@ exports.handler = async (event, context) => {
     // GET - Obter produtos em destaque
     if ((path === '/products/featured' || path === '/api/products/featured') && event.httpMethod === 'GET') {
       try {
+        // Primeiro buscar produtos principais para validação
+        const mainProducts = await fetchFromBin(BINS.products);
+        const validProductIds = mainProducts
+          .filter(p => p.id !== 0 && p.name !== "Placeholder")
+          .map(p => p.id);
+          
+        console.log('IDs de produtos válidos:', validProductIds);
+        
+        // Buscar produtos em destaque
         const featuredProducts = await fetchFromBin(BINS.featured);
         
-        // Filtrar produtos placeholder
-        const visibleFeatured = featuredProducts.filter(prod => prod.id !== 0 && prod.name !== "Placeholder");
+        // Filtrar produtos que existem na lista principal e não são placeholders
+        const visibleFeatured = featuredProducts.filter(prod => 
+          prod.id !== 0 && 
+          prod.name !== "Placeholder" && 
+          validProductIds.includes(prod.id)
+        );
         
         return {
           statusCode: 200,
@@ -942,10 +999,21 @@ exports.handler = async (event, context) => {
     // GET - Obter produtos em promoção
     if ((path === '/products/promotions' || path === '/api/products/promotions') && event.httpMethod === 'GET') {
       try {
+        // Primeiro buscar produtos principais para validação
+        const mainProducts = await fetchFromBin(BINS.products);
+        const validProductIds = mainProducts
+          .filter(p => p.id !== 0 && p.name !== "Placeholder")
+          .map(p => p.id);
+        
+        // Buscar produtos em promoção
         const promotionProducts = await fetchFromBin(BINS.promotions);
         
-        // Filtrar produtos placeholder
-        const visiblePromotions = promotionProducts.filter(prod => prod.id !== 0 && prod.name !== "Placeholder");
+        // Filtrar produtos que existem na lista principal e não são placeholders
+        const visiblePromotions = promotionProducts.filter(prod => 
+          prod.id !== 0 && 
+          prod.name !== "Placeholder" && 
+          validProductIds.includes(prod.id)
+        );
         
         return {
           statusCode: 200,
@@ -1449,102 +1517,10 @@ exports.handler = async (event, context) => {
           const updateResult = await updateResponse.json();
           console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualização bem-sucedida: ${JSON.stringify(updateResult.metadata)}`);
           
-          // 5. Também atualizar listas especiais
-          // Atualizar featured
-          try {
-            const featuredResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.featured}/latest`, { 
-              headers: { 'X-Master-Key': JSONBIN_API_KEY } 
-            });
-            
-            if (featuredResponse.ok) {
-              const featuredData = await featuredResponse.json();
-              const featuredProducts = featuredData.record || [];
-              const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
-              
-              // Também verificar se a lista de destaques ficaria vazia
-              if (filteredFeatured.length === 0) {
-                console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Lista de destaques ficaria vazia, adicionando placeholder');
-                filteredFeatured.push({
-                  id: 0,
-                  name: "Placeholder",
-                  description: "Este é um produto placeholder que pode ser excluído",
-                  price: 0,
-                  imageUrl: "",
-                  categoryId: null,
-                  available: false,
-                  isFeatured: true,
-                  isPromotion: false,
-                  createdAt: new Date().toISOString()
-                });
-              }
-              
-              if (filteredFeatured.length !== featuredProducts.length || featuredProducts.length === 0) {
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualizando produto na lista de destaques`);
-                
-                await fetch(`https://api.jsonbin.io/v3/b/${BINS.featured}`, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_API_KEY
-                  },
-                  body: JSON.stringify(filteredFeatured)
-                });
-                
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produto removido dos destaques`);
-              }
-            }
-          } catch (featuredError) {
-            // Apenas log, não falhar a operação principal
-            console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro ao atualizar destaques: ${featuredError.message}`);
-          }
-        
-          // Atualizar promotions
-          try {
-            const promotionsResponse = await fetch(`https://api.jsonbin.io/v3/b/${BINS.promotions}/latest`, { 
-              headers: { 'X-Master-Key': JSONBIN_API_KEY } 
-            });
-            
-            if (promotionsResponse.ok) {
-              const promotionsData = await promotionsResponse.json();
-              const promotionProducts = promotionsData.record || [];
-              const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
-              
-              // Também verificar se a lista de promoções ficaria vazia
-              if (filteredPromotions.length === 0) {
-                console.log('NETLIFY DEBUG [EXCLUSÃO REAL]: Lista de promoções ficaria vazia, adicionando placeholder');
-                filteredPromotions.push({
-                  id: 0,
-                  name: "Placeholder",
-                  description: "Este é um produto placeholder que pode ser excluído",
-                  price: 0,
-                  imageUrl: "",
-                  categoryId: null,
-                  available: false,
-                  isFeatured: false,
-                  isPromotion: true,
-                  createdAt: new Date().toISOString()
-                });
-              }
-              
-              if (filteredPromotions.length !== promotionProducts.length || promotionProducts.length === 0) {
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Atualizando produto na lista de promoções`);
-                
-                await fetch(`https://api.jsonbin.io/v3/b/${BINS.promotions}`, {
-                  method: 'PUT',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_API_KEY
-                  },
-                  body: JSON.stringify(filteredPromotions)
-                });
-                
-                console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Produto removido das promoções`);
-              }
-            }
-          } catch (promotionsError) {
-            // Apenas log, não falhar a operação principal
-            console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro ao atualizar promoções: ${promotionsError.message}`);
-          }
+          // Agora sincronizar todos os bins para garantir consistência
+          await syncProductsAcrossBins();
+          console.log(`NETLIFY DEBUG [EXCLUSÃO REAL]: Sincronização completa de todos os produtos realizada`);
+          
         } catch (updateError) {
           console.error(`NETLIFY DEBUG [EXCLUSÃO REAL]: Erro ao atualizar dados: ${updateError.message}`);
           throw new Error(`Falha na atualização: ${updateError.message}`);
@@ -1635,106 +1611,9 @@ exports.handler = async (event, context) => {
         products[index] = updatedProduct;
         await updateBin(BINS.products, products);
         
-        // Atualizar listas especiais se necessário
-        // Lista de destaques - verificar se entrou ou saiu da lista
-        try {
-          if (wasInFeatured !== isNowInFeatured || isNowInFeatured) {
-            const featuredProducts = await fetchFromBin(BINS.featured);
-            
-            // Verificação de segurança para garantir que featuredProducts seja um array
-            const validFeaturedProducts = Array.isArray(featuredProducts) ? featuredProducts : [];
-            
-            if (isNowInFeatured) {
-              // Adicionar ou atualizar na lista de destaques
-              const featureIndex = validFeaturedProducts.findIndex(p => p.id === productId);
-              
-              if (featureIndex >= 0) {
-                // Atualizar produto existente
-                validFeaturedProducts[featureIndex] = updatedProduct;
-              } else {
-                // Adicionar novo produto
-                validFeaturedProducts.push(updatedProduct);
-              }
-            } else if (wasInFeatured) {
-              // Remover da lista de destaques
-              const filteredFeatured = validFeaturedProducts.filter(p => p.id !== productId);
-              
-              // Verificar se a lista ficaria vazia e adicionar um placeholder se necessário
-              if (filteredFeatured.length === 0) {
-                filteredFeatured.push({
-                  id: 0,
-                  name: "Placeholder",
-                  description: "Este é um produto placeholder que pode ser excluído",
-                  price: 0,
-                  imageUrl: "",
-                  categoryId: null,
-                  available: false,
-                  isFeatured: true,
-                  isPromotion: false,
-                  createdAt: new Date().toISOString()
-                });
-              }
-              
-              await updateBin(BINS.featured, filteredFeatured);
-            } else {
-              // Apenas atualizar a lista de destaques
-              await updateBin(BINS.featured, validFeaturedProducts);
-            }
-          }
-        } catch (featuredError) {
-          console.error('NETLIFY DEBUG [ATUALIZAÇÃO]: Erro ao atualizar lista de destaques', featuredError);
-          // Continuar mesmo com erro
-        }
-        
-        // Lista de promoções - verificar se entrou ou saiu da lista
-        try {
-          if (wasInPromotion !== isNowInPromotion || isNowInPromotion) {
-            const promotionProducts = await fetchFromBin(BINS.promotions);
-            
-            // Verificação de segurança para garantir que promotionProducts seja um array
-            const validPromotionProducts = Array.isArray(promotionProducts) ? promotionProducts : [];
-            
-            if (isNowInPromotion) {
-              // Adicionar ou atualizar na lista de promoções
-              const promoIndex = validPromotionProducts.findIndex(p => p.id === productId);
-              
-              if (promoIndex >= 0) {
-                // Atualizar produto existente
-                validPromotionProducts[promoIndex] = updatedProduct;
-              } else {
-                // Adicionar novo produto
-                validPromotionProducts.push(updatedProduct);
-              }
-            } else if (wasInPromotion) {
-              // Remover da lista de promoções
-              const filteredPromotions = validPromotionProducts.filter(p => p.id !== productId);
-              
-              // Verificar se a lista ficaria vazia e adicionar um placeholder se necessário
-              if (filteredPromotions.length === 0) {
-                filteredPromotions.push({
-                  id: 0,
-                  name: "Placeholder",
-                  description: "Este é um produto placeholder que pode ser excluído",
-                  price: 0,
-                  imageUrl: "",
-                  categoryId: null,
-                  available: false,
-                  isFeatured: false,
-                  isPromotion: true,
-                  createdAt: new Date().toISOString()
-                });
-              }
-              
-              await updateBin(BINS.promotions, filteredPromotions);
-            } else {
-              // Apenas atualizar a lista de promoções
-              await updateBin(BINS.promotions, validPromotionProducts);
-            }
-          }
-        } catch (promotionError) {
-          console.error('NETLIFY DEBUG [ATUALIZAÇÃO]: Erro ao atualizar lista de promoções', promotionError);
-          // Continuar mesmo com erro
-        }
+        // Sincronizar todos os bins para garantir consistência
+        await syncProductsAcrossBins();
+        console.log('Produto sincronizado com todas as listas');
         
         return {
           statusCode: 200,
