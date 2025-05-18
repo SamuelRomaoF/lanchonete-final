@@ -8,6 +8,11 @@ interface User {
   type: 'cliente' | 'admin';
 }
 
+interface AuthToken {
+  token: string;
+  user: User;
+}
+
 interface AuthProviderProps {
   children: ReactNode;
 }
@@ -36,6 +41,39 @@ export function AuthProvider({ children }: AuthProviderProps) {
   
   const checkAuth = async () => {
     try {
+      // Primeiro verificar se há token no localStorage
+      const savedAuthData = localStorage.getItem('authData');
+      
+      if (savedAuthData) {
+        try {
+          // Tentar usar o token salvo
+          const authData: AuthToken = JSON.parse(savedAuthData);
+          
+          // Usar o token para fazer uma requisição de validação
+          const response = await fetch("/api/auth/me", {
+            headers: {
+              "Authorization": `Bearer ${authData.token}`
+            }
+          });
+          
+          if (response.ok) {
+            // Token válido, definir usuário
+            const data = await response.json();
+            console.log("Autenticação restaurada do localStorage:", data);
+            setUser(data.user || authData.user);
+            return;
+          } else {
+            // Token inválido, remover do localStorage
+            console.log("Token salvo inválido, removendo do localStorage");
+            localStorage.removeItem('authData');
+          }
+        } catch (parseError) {
+          console.error("Erro ao processar token salvo:", parseError);
+          localStorage.removeItem('authData');
+        }
+      }
+      
+      // Se não houver token ou o token for inválido, verificar a autenticação normal
       const response = await fetch("/api/auth/me", {
         credentials: "include",
       });
@@ -80,6 +118,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
       // Garantir que os dados do usuário estejam no formato correto
       const userData = data.user || data;
+      
+      // Salvar dados de autenticação no localStorage
+      if (data.token) {
+        localStorage.setItem('authData', JSON.stringify({
+          token: data.token,
+          user: userData
+        }));
+      }
+      
       setUser(userData);
       return userData;
     } catch (error) {
@@ -89,7 +136,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
   
   const logout = async () => {
-    await apiRequest("POST", "/api/auth/logout", {});
+    try {
+      await apiRequest("POST", "/api/auth/logout", {});
+    } catch (error) {
+      console.error("Erro ao fazer logout na API:", error);
+    }
+    
+    // Remover dados de autenticação do localStorage
+    localStorage.removeItem('authData');
     setUser(null);
   };
   

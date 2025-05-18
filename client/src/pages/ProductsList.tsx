@@ -109,7 +109,7 @@ const ProductsList = () => {
                     description={product.description || ""}
                     price={product.price}
                     oldPrice={product.oldPrice}
-                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    imageUrl={product.imageUrl || ""}
                     isFeatured={product.isFeatured}
                     isPromotion={product.isPromotion}
                   />
@@ -151,7 +151,7 @@ const ProductsList = () => {
                         description={product.description || ""}
                         price={product.price}
                         oldPrice={product.oldPrice}
-                        imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                        imageUrl={product.imageUrl || ""}
                         isFeatured={product.isFeatured}
                         isPromotion={product.isPromotion}
                       />

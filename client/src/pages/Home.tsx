@@ -96,7 +96,7 @@ const Home = () => {
                   key={category.id} 
                   id={category.id} 
                   name={category.name} 
-                  imageUrl={category.imageUrl || "https://images.unsplash.com/photo-1586190848861-99aa4a171e90"} 
+                  imageUrl={category.imageUrl || ""}
                 />
               ))}
             </div>
@@ -138,7 +138,7 @@ const Home = () => {
                     description={product.description || ""}
                     price={product.price}
                     oldPrice={product.oldPrice}
-                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    imageUrl={product.imageUrl || ""}
                     isFeatured={product.isFeatured}
                     isPromotion={product.isPromotion}
                   />
@@ -332,7 +332,7 @@ const Home = () => {
                     description={product.description || ""}
                     price={product.price}
                     oldPrice={product.oldPrice}
-                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    imageUrl={product.imageUrl || ""}
                     isFeatured={product.isFeatured}
                     isPromotion={product.isPromotion}
                   />
