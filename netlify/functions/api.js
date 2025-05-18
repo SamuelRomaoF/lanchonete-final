@@ -68,6 +68,7 @@ async function forceRewriteBin(binId, data) {
 // Funções para interagir com JSONBin.io
 async function fetchFromBin(binId) {
   try {
+    console.log(`NETLIFY DEBUG: Buscando dados do bin ${binId}`);
     const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`, {
       method: 'GET',
       headers: {
@@ -76,23 +77,23 @@ async function fetchFromBin(binId) {
     });
     
     if (!response.ok) {
-      console.error('Erro ao buscar dados do JSONBin:', await response.text());
+      console.error('NETLIFY DEBUG: Erro ao buscar dados do JSONBin:', await response.text());
       return [];
     }
     
     const data = await response.json();
+    console.log(`NETLIFY DEBUG: Dados recebidos do bin ${binId} com sucesso`);
     return data.record || [];
   } catch (error) {
-    console.error('Erro ao buscar dados do JSONBin:', error);
+    console.error('NETLIFY DEBUG: Erro ao buscar dados do JSONBin:', error);
     return [];
   }
 }
 
 async function updateBin(binId, data) {
   try {
-    console.log(`Tentando atualizar bin ${binId} com ${data.length} itens`);
-    console.log('Primeiro item da coleção (amostra):', data.length > 0 ? data[0] : 'Sem itens');
-    console.log('Dados enviados para updateBin:', JSON.stringify(data).substring(0, 200) + '...');
+    console.log(`NETLIFY DEBUG: Atualizando bin ${binId} com ${data.length} itens`);
+    console.log('NETLIFY DEBUG: Primeiro item da coleção (amostra):', data.length > 0 ? JSON.stringify(data[0]).substring(0, 100) : 'Sem itens');
     
     const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
       method: 'PUT',
@@ -105,15 +106,15 @@ async function updateBin(binId, data) {
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`Erro ao atualizar dados no JSONBin (status ${response.status}):`, errorText);
+      console.error(`NETLIFY DEBUG: Erro ao atualizar dados no JSONBin (status ${response.status}):`, errorText);
       return false;
     }
     
     const result = await response.json();
-    console.log('Resposta do JSONBin após atualização:', result.metadata);
+    console.log('NETLIFY DEBUG: Resposta do JSONBin após atualização:', JSON.stringify(result.metadata));
     return true;
   } catch (error) {
-    console.error('Erro ao atualizar dados no JSONBin:', error);
+    console.error('NETLIFY DEBUG: Erro ao atualizar dados no JSONBin:', error);
     return false;
   }
 }
@@ -1112,10 +1113,10 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // DELETE - Excluir produto
+    // DELETE - Excluir produto (VERSÃO SIMPLIFICADA)
     if ((path.match(/^\/products\/\d+$/) || path.match(/^\/api\/products\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
-        console.log('Tentando excluir produto com caminho:', path);
+        console.log('NETLIFY DEBUG: Tentando excluir produto com caminho:', path);
         
         // Extrair e validar ID usando o helper
         const idInfo = extractAndValidateId(path);
@@ -1130,85 +1131,27 @@ exports.handler = async (event, context) => {
         }
         
         const productId = idInfo.id; // Usar o ID já convertido para número
-        console.log('ID do produto a excluir:', productId, 'tipo:', typeof productId);
-        
-        // SOLUÇÃO FORÇADA PARA ID 0
-        if (productId === 0) {
-          console.log('ID 0 detectado - usando método de remoção forçada');
-          
-          // Forçar remoção em todas as listas
-          const productsSuccess = await forceRemoveItemWithZeroId(BINS.products);
-          const featuredSuccess = await forceRemoveItemWithZeroId(BINS.featured);
-          const promotionsSuccess = await forceRemoveItemWithZeroId(BINS.promotions);
-          
-          console.log(`Resultados da remoção forçada: produtos=${productsSuccess}, featured=${featuredSuccess}, promotions=${promotionsSuccess}`);
-          
-          return {
-            statusCode: 200,
-            headers: {
-              ...headers,
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            },
-            body: JSON.stringify({ 
-              success: true, 
-              message: 'Produto com ID 0 realmente removido de todos os bins',
-              timestamp: Date.now()
-            })
-          };
-        }
+        console.log('NETLIFY DEBUG: ID do produto a excluir:', productId, 'tipo:', typeof productId);
         
         // Buscar produtos existentes
         let products = await fetchFromBin(BINS.products);
-        console.log(`Total de ${products.length} produtos encontrados`);
+        console.log(`NETLIFY DEBUG: Total de ${products.length} produtos encontrados`);
         
         // Verificar se products é um array válido
         if (!Array.isArray(products)) {
-          console.error('ERRO: Dados de produtos não é um array!');
+          console.error('NETLIFY DEBUG: Dados de produtos não é um array!');
           products = [];
         }
         
-        // Listar IDs de produtos para debug
-        const productIds = products.map(p => p.id);
-        console.log('IDs de produtos existentes:', productIds);
+        // VERSÃO SIMPLIFICADA: Filtrar o produto a ser removido
+        const filteredProducts = products.filter(p => p.id !== productId);
+        console.log(`NETLIFY DEBUG: Após filtrar, restam ${filteredProducts.length} produtos`);
         
-        // Verificar se o produto existe
-        const productIndex = products.findIndex(p => {
-          // Comparar como string para garantir
-          return String(p.id) === String(productId);
-        });
-        
-        if (productIndex === -1) {
-          // ALTERAÇÃO: Se o produto não existir, vamos fingir que a operação foi bem-sucedida
-          console.log(`Produto com ID ${productId} não encontrado, mas retornando sucesso mesmo assim`);
-          return {
-            statusCode: 200,
-            headers: {
-              ...headers,
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            },
-            body: JSON.stringify({ 
-              success: true, 
-              message: 'Operação completada',
-              timestamp: Date.now()
-            })
-          };
-        }
-        
-        // Continuar com o processo normal de exclusão apenas se o produto existir
-        console.log(`Removendo produto na posição ${productIndex} com ID ${productId}`);
-        products.splice(productIndex, 1); // Remover diretamente pelo índice
-        
-        console.log(`Nova lista contém ${products.length} produtos`);
-        
-        // Usar a nova função super radical
-        const success = await recreateBin(BINS.products, products);
+        // Atualizar o bin com a versão filtrada
+        const success = await updateBin(BINS.products, filteredProducts);
         
         if (!success) {
-          console.error('ERRO FATAL: Falha ao recriar bin após excluir produto');
+          console.error('NETLIFY DEBUG: Falha ao atualizar produtos após exclusão');
           return {
             statusCode: 500,
             headers,
@@ -1216,31 +1159,32 @@ exports.handler = async (event, context) => {
           };
         }
         
-        console.log('SUCESSO: Produto excluído com êxito');
+        console.log('NETLIFY DEBUG: Produto excluído da lista principal com sucesso');
         
-        // Verificar se o produto estava nas listas especiais
-        // Lista de destaque
-        let featuredProducts = await fetchFromBin(BINS.featured);
-        if (Array.isArray(featuredProducts)) {
-          const featuredIndex = featuredProducts.findIndex(p => String(p.id) === String(productId));
-          
-          if (featuredIndex !== -1) {
-            console.log('Removendo produto da lista de destaques');
-            featuredProducts.splice(featuredIndex, 1);
-            await recreateBin(BINS.featured, featuredProducts);
+        // Também remover das listas especiais se necessário
+        try {
+          // Lista de destaque
+          let featuredProducts = await fetchFromBin(BINS.featured);
+          if (Array.isArray(featuredProducts)) {
+            const filteredFeatured = featuredProducts.filter(p => p.id !== productId);
+            if (filteredFeatured.length !== featuredProducts.length) {
+              console.log('NETLIFY DEBUG: Removendo produto da lista de destaques');
+              await updateBin(BINS.featured, filteredFeatured);
+            }
           }
-        }
-        
-        // Lista de promoções
-        let promotionProducts = await fetchFromBin(BINS.promotions);
-        if (Array.isArray(promotionProducts)) {
-          const promotionIndex = promotionProducts.findIndex(p => String(p.id) === String(productId));
           
-          if (promotionIndex !== -1) {
-            console.log('Removendo produto da lista de promoções');
-            promotionProducts.splice(promotionIndex, 1);
-            await recreateBin(BINS.promotions, promotionProducts);
+          // Lista de promoções
+          let promotionProducts = await fetchFromBin(BINS.promotions);
+          if (Array.isArray(promotionProducts)) {
+            const filteredPromotions = promotionProducts.filter(p => p.id !== productId);
+            if (filteredPromotions.length !== promotionProducts.length) {
+              console.log('NETLIFY DEBUG: Removendo produto da lista de promoções');
+              await updateBin(BINS.promotions, filteredPromotions);
+            }
           }
+        } catch (err) {
+          console.error('NETLIFY DEBUG: Erro ao atualizar listas especiais:', err);
+          // Continuamos mesmo com erro nas listas especiais
         }
         
         // Forçar o frontend a recarregar dados
@@ -1259,7 +1203,7 @@ exports.handler = async (event, context) => {
           })
         };
       } catch (err) {
-        console.error('Erro crítico ao excluir produto:', err);
+        console.error('NETLIFY DEBUG: Erro crítico ao excluir produto:', err);
         return {
           statusCode: 500,
           headers,
@@ -1268,10 +1212,10 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // DELETE - Excluir categoria
+    // DELETE - Excluir categoria (VERSÃO SIMPLIFICADA)
     if ((path.match(/^\/categories\/\d+$/) || path.match(/^\/api\/categories\/\d+$/)) && event.httpMethod === 'DELETE') {
       try {
-        console.log('Tentando excluir categoria com caminho:', path);
+        console.log('NETLIFY DEBUG: Tentando excluir categoria com caminho:', path);
         
         // Extrair e validar ID usando o helper
         const idInfo = extractAndValidateId(path);
@@ -1286,83 +1230,27 @@ exports.handler = async (event, context) => {
         }
         
         const categoryId = idInfo.id; // Usar o ID já convertido para número
-        console.log('ID da categoria a excluir:', categoryId, 'tipo:', typeof categoryId);
-        
-        // SOLUÇÃO FORÇADA PARA ID 0
-        if (categoryId === 0) {
-          console.log('ID 0 detectado - usando método de remoção forçada para categoria');
-          
-          // Forçar remoção na lista de categorias
-          const success = await forceRemoveItemWithZeroId(BINS.categories);
-          
-          console.log(`Resultado da remoção forçada: categorias=${success}`);
-          
-          return {
-            statusCode: 200,
-            headers: {
-              ...headers,
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            },
-            body: JSON.stringify({ 
-              success: true, 
-              message: 'Categoria com ID 0 realmente removida',
-              timestamp: Date.now()
-            })
-          };
-        }
+        console.log('NETLIFY DEBUG: ID da categoria a excluir:', categoryId, 'tipo:', typeof categoryId);
         
         // Buscar categorias existentes
         let categories = await fetchFromBin(BINS.categories);
-        console.log(`Total de ${categories.length} categorias encontradas`);
+        console.log(`NETLIFY DEBUG: Total de ${categories.length} categorias encontradas`);
         
         // Verificar se categories é um array válido
         if (!Array.isArray(categories)) {
-          console.error('ERRO: Dados de categorias não é um array!');
+          console.error('NETLIFY DEBUG: Dados de categorias não é um array!');
           categories = [];
         }
         
-        // Listar IDs de categorias para debug
-        const categoryIds = categories.map(c => c.id);
-        console.log('IDs de categorias existentes:', categoryIds);
+        // VERSÃO SIMPLIFICADA: Filtrar a categoria a ser removida
+        const filteredCategories = categories.filter(c => c.id !== categoryId);
+        console.log(`NETLIFY DEBUG: Após filtrar, restam ${filteredCategories.length} categorias`);
         
-        // Verificar se a categoria existe
-        const categoryIndex = categories.findIndex(c => {
-          // Comparar como string para garantir
-          return String(c.id) === String(categoryId);
-        });
-        
-        if (categoryIndex === -1) {
-          // ALTERAÇÃO: Se a categoria não existir, vamos fingir que a operação foi bem-sucedida
-          console.log(`Categoria com ID ${categoryId} não encontrada, mas retornando sucesso mesmo assim`);
-          return {
-            statusCode: 200,
-            headers: {
-              ...headers,
-              'Cache-Control': 'no-cache, no-store, must-revalidate',
-              'Pragma': 'no-cache',
-              'Expires': '0'
-            },
-            body: JSON.stringify({ 
-              success: true, 
-              message: 'Operação completada',
-              timestamp: Date.now()
-            })
-          };
-        }
-        
-        // Continuar com o processo normal de exclusão apenas se a categoria existir
-        console.log(`Removendo categoria na posição ${categoryIndex} com ID ${categoryId}`);
-        categories.splice(categoryIndex, 1); // Remover diretamente pelo índice
-        
-        console.log(`Nova lista contém ${categories.length} categorias`);
-        
-        // Usar a nova função super radical
-        const success = await recreateBin(BINS.categories, categories);
+        // Atualizar o bin com a versão filtrada
+        const success = await updateBin(BINS.categories, filteredCategories);
         
         if (!success) {
-          console.error('ERRO FATAL: Falha ao recriar bin após excluir categoria');
+          console.error('NETLIFY DEBUG: Falha ao atualizar categorias após exclusão');
           return {
             statusCode: 500,
             headers,
@@ -1370,7 +1258,7 @@ exports.handler = async (event, context) => {
           };
         }
         
-        console.log('SUCESSO: Categoria excluída com êxito');
+        console.log('NETLIFY DEBUG: Categoria excluída com sucesso');
         
         // Forçar o frontend a recarregar dados
         return {
@@ -1388,7 +1276,7 @@ exports.handler = async (event, context) => {
           })
         };
       } catch (err) {
-        console.error('Erro crítico ao excluir categoria:', err);
+        console.error('NETLIFY DEBUG: Erro crítico ao excluir categoria:', err);
         return {
           statusCode: 500,
           headers,
