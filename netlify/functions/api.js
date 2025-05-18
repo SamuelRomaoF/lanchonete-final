@@ -692,7 +692,12 @@ exports.handler = async (event, context) => {
         
         return {
           statusCode: 201,
-          headers,
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           body: JSON.stringify(newCategory)
         };
       } catch (err) {
@@ -786,7 +791,12 @@ exports.handler = async (event, context) => {
         
         return {
           statusCode: 201,
-          headers,
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           body: JSON.stringify(newProduct)
         };
       } catch (err) {
@@ -812,13 +822,21 @@ exports.handler = async (event, context) => {
           console.log('Nenhuma categoria encontrada ou formato inválido, retornando array vazio');
           return {
             statusCode: 200,
-            headers,
+            headers: {
+              ...headers,
+              'Cache-Control': 'no-cache, no-store, must-revalidate',
+              'Pragma': 'no-cache',
+              'Expires': '0'
+            },
             body: JSON.stringify([])
           };
         }
         
+        // Filtrar categorias placeholder (id zero) antes de retornar para o frontend
+        const visibleCategories = categories.filter(cat => cat.id !== 0 && cat.name !== "Categoria Placeholder");
+        
         // Garantir que todas as categorias tenham campos obrigatórios
-        const validatedCategories = categories.map(category => {
+        const validatedCategories = visibleCategories.map(category => {
           return {
             id: typeof category.id === 'number' ? category.id : 0,
             name: category.name || 'Sem nome',
@@ -831,7 +849,12 @@ exports.handler = async (event, context) => {
         
         return {
           statusCode: 200,
-          headers,
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           body: JSON.stringify(validatedCategories)
         };
       } catch (error) {
@@ -849,8 +872,11 @@ exports.handler = async (event, context) => {
       try {
         const products = await fetchFromBin(BINS.products);
         
+        // Filtrar produtos placeholder (id zero) antes de retornar para o frontend
+        const visibleProducts = products.filter(prod => prod.id !== 0 && prod.name !== "Placeholder");
+        
         // Garantir que todos os produtos tenham campos obrigatórios
-        const validatedProducts = products.map(product => {
+        const validatedProducts = visibleProducts.map(product => {
           return {
             id: product.id || 0,
             name: product.name || 'Sem nome',
@@ -867,7 +893,12 @@ exports.handler = async (event, context) => {
         
         return {
           statusCode: 200,
-          headers,
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           body: JSON.stringify(validatedProducts)
         };
       } catch (error) {
@@ -882,22 +913,58 @@ exports.handler = async (event, context) => {
 
     // GET - Obter produtos em destaque
     if ((path === '/products/featured' || path === '/api/products/featured') && event.httpMethod === 'GET') {
-      const featuredProducts = await fetchFromBin(BINS.featured);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(featuredProducts)
-      };
+      try {
+        const featuredProducts = await fetchFromBin(BINS.featured);
+        
+        // Filtrar produtos placeholder
+        const visibleFeatured = featuredProducts.filter(prod => prod.id !== 0 && prod.name !== "Placeholder");
+        
+        return {
+          statusCode: 200,
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
+          body: JSON.stringify(visibleFeatured)
+        };
+      } catch (error) {
+        console.error('Erro ao buscar produtos em destaque:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao buscar produtos em destaque' })
+        };
+      }
     }
 
     // GET - Obter produtos em promoção
     if ((path === '/products/promotions' || path === '/api/products/promotions') && event.httpMethod === 'GET') {
-      const promotionProducts = await fetchFromBin(BINS.promotions);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(promotionProducts)
-      };
+      try {
+        const promotionProducts = await fetchFromBin(BINS.promotions);
+        
+        // Filtrar produtos placeholder
+        const visiblePromotions = promotionProducts.filter(prod => prod.id !== 0 && prod.name !== "Placeholder");
+        
+        return {
+          statusCode: 200,
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
+          body: JSON.stringify(visiblePromotions)
+        };
+      } catch (error) {
+        console.error('Erro ao buscar produtos em promoção:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: 'Erro ao buscar produtos em promoção' })
+        };
+      }
     }
 
     // Implementação da rota de check-reset
@@ -1258,7 +1325,9 @@ exports.handler = async (event, context) => {
           statusCode: 200,
           headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           },
           body: JSON.stringify({ 
             success: true, 
@@ -1488,7 +1557,9 @@ exports.handler = async (event, context) => {
           statusCode: 200,
           headers: {
             ...headers,
-            'Cache-Control': 'no-cache, no-store, must-revalidate'
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           },
           body: JSON.stringify({ 
             success: true, 
@@ -1667,7 +1738,12 @@ exports.handler = async (event, context) => {
         
         return {
           statusCode: 200,
-          headers,
+          headers: {
+            ...headers,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+          },
           body: JSON.stringify(updatedProduct)
         };
       } catch (err) {
