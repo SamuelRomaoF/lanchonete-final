@@ -98,8 +98,7 @@ export function OrderQueueProvider({ children }: OrderQueueProviderProps) {
     const checkNewDay = async () => {
       try {
         // Verificar no servidor se é um novo dia
-        const response = await apiRequest('GET', '/api/queue/check-reset');
-        const data = await response.json();
+        const data = await apiRequest('GET', '/api/queue/check-reset');
         
         if (data && data.reset) {
           // Foi resetado no servidor, resetar também localmente

@@ -29,8 +29,9 @@ import { useAuth } from "@/context/AuthContext";
 import { OrderStatus, OrderTicket, useOrderQueue } from "@/context/OrderQueueContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { ClipboardList, RefreshCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useLocation } from "wouter";
+import { Link, useLocation } from "wouter";
 
 const statusConfig: Record<OrderStatus, {color: string, text: string}> = {
   recebido: { color: "bg-yellow-500", text: "Recebido" },
@@ -260,6 +261,16 @@ const OrdersList = () => {
         <h1 className="text-2xl font-bold">Gerenciamento de Senhas</h1>
         
         <div className="flex items-center space-x-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            asChild
+          >
+            <Link href="/admin/pedidos/historico">
+              <ClipboardList className="h-4 w-4 mr-1" /> Histórico Completo
+            </Link>
+          </Button>
+          
           <div className="flex items-center space-x-2">
             <Switch 
               checked={soundEnabled}
@@ -276,7 +287,7 @@ const OrdersList = () => {
             size="sm"
             onClick={manualSync}
           >
-            <i className="ri-refresh-line mr-1"></i> Atualizar
+            <RefreshCcw className="h-4 w-4 mr-1" /> Atualizar
           </Button>
         </div>
       </div>

@@ -3,66 +3,66 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 20 14.3% 4.1%;
-  --muted: 60 4.8% 95.9%;
-  --muted-foreground: 25 5.3% 44.7%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 20 14.3% 4.1%;
-  --card: 0 0% 100%;
-  --card-foreground: 20 14.3% 4.1%;
-  --border: 20 5.9% 90%;
-  --input: 20 5.9% 90%;
-  --primary: 16 100% 50%;
+  --background: 30 30% 97%; /* Fundo em tom de marrom claro */
+  --foreground: 25 25% 15%; /* Texto em marrom escuro */
+  --muted: 28 15% 94%;
+  --muted-foreground: 25 10% 45%;
+  --popover: 30 30% 97%;
+  --popover-foreground: 25 25% 15%;
+  --card: 30 25% 95%;
+  --card-foreground: 25 25% 15%;
+  --border: 25 15% 85%;
+  --input: 25 15% 85%;
+  --primary: 25 70% 45%; /* Marrom madeira como cor primária */
   --primary-foreground: 0 0% 100%;
-  --secondary: 120 43% 50%;
+  --secondary: 28 40% 60%; /* Tom de marrom mais claro secundário */
   --secondary-foreground: 0 0% 100%;
-  --accent: 43 100% 50%;
-  --accent-foreground: 20 14.3% 4.1%;
+  --accent: 30 50% 80%; /* Marrom muito claro para destaque */
+  --accent-foreground: 25 25% 15%;
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 60 9.1% 97.8%;
-  --ring: 16 100% 50%;
+  --ring: 25 70% 45%;
   --radius: 0.5rem;
   
   /* Chart colors */
-  --chart-1: 16 100% 50%;
-  --chart-2: 120 43% 50%;
-  --chart-3: 43 100% 50%;
-  --chart-4: 200 100% 50%;
-  --chart-5: 280 100% 50%;
+  --chart-1: 25 70% 45%; /* Marrom principal */
+  --chart-2: 28 40% 60%; /* Marrom claro */
+  --chart-3: 30 50% 80%; /* Marrom muito claro */
+  --chart-4: 20 60% 35%; /* Marrom escuro */
+  --chart-5: 15 50% 25%; /* Marrom muito escuro */
   
   /* Sidebar colors (admin) */
-  --sidebar-background: 240 10% 3.9%;
-  --sidebar-foreground: 0 0% 98%;
-  --sidebar-primary: 16 100% 50%;
+  --sidebar-background: 25 30% 25%; /* Fundo do sidebar marrom escuro */
+  --sidebar-foreground: 30 30% 97%; /* Texto claro */
+  --sidebar-primary: 25 70% 45%; /* Marrom principal */
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 60 4.8% 95.9%;
-  --sidebar-accent-foreground: 24 9.8% 10%;
-  --sidebar-border: 240 3.7% 15.9%;
-  --sidebar-ring: 142.1 76.2% 36.3%;
+  --sidebar-accent: 30 50% 80%; /* Marrom claro */
+  --sidebar-accent-foreground: 25 25% 15%;
+  --sidebar-border: 25 20% 35%;
+  --sidebar-ring: 25 70% 45%;
 }
 
 .dark {
-  /* Cores padronizadas para um tema escuro mais consistente */
-  --background: 220 20% 13%; /* Cor base para fundos */
-  --foreground: 0 0% 98%;
-  --muted: 220 20% 18%; /* Cor muted mais escura */
-  --muted-foreground: 220 10% 70%;
-  --popover: 220 20% 13%;
-  --popover-foreground: 0 0% 98%;
-  --card: 220 20% 16%; /* Cor para cards */
-  --card-foreground: 0 0% 98%;
-  --border: 220 20% 20%;
-  --input: 220 20% 18%;
-  --primary: 16 100% 50%;
+  /* Cores para tema escuro com base em marrom */
+  --background: 25 30% 15%; /* Fundo escuro marrom */
+  --foreground: 30 25% 90%;
+  --muted: 25 25% 20%;
+  --muted-foreground: 25 10% 70%;
+  --popover: 25 30% 15%;
+  --popover-foreground: 30 25% 90%;
+  --card: 25 30% 18%;
+  --card-foreground: 30 25% 90%;
+  --border: 25 25% 25%;
+  --input: 25 25% 20%;
+  --primary: 25 70% 45%; /* Mantém a cor primária */
   --primary-foreground: 0 0% 100%;
-  --secondary: 120 43% 50%;
+  --secondary: 28 40% 60%;
   --secondary-foreground: 0 0% 100%;
-  --accent: 43 100% 50%;
-  --accent-foreground: 0 0% 98%;
+  --accent: 30 50% 80%;
+  --accent-foreground: 25 25% 15%;
   --destructive: 0 62.8% 30.6%;
   --destructive-foreground: 0 0% 98%;
-  --ring: 16 100% 50%;
+  --ring: 25 70% 45%;
 }
 
 @layer base {
@@ -91,7 +91,7 @@
 
 .hero-section {
   position: relative;
-  background-color: #1f2937; /* Cor escura para o fundo do hero */
+  background-color: hsl(25, 30%, 25%); /* Cor de fundo do hero em marrom */
   color: white;
   padding: 4rem 0;
 }

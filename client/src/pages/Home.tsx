@@ -58,9 +58,9 @@ const Home = () => {
         
         <div className="container mx-auto px-4 relative z-20">
           <div className="max-w-2xl">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Lanches rápidos para seu dia na universidade!</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Cantinho do Sabor - Seu lugar de comida boa!</h1>
             <p className="text-lg mb-8 opacity-90">
-              Os melhores lanches para dar energia aos seus estudos. Faça uma pausa e venha experimentar nossas delícias!
+              Os melhores lanches com sabor caseiro para você. Faça uma pausa e venha experimentar nossas delícias!
             </p>
             <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
               <Link href="/produtos">
@@ -106,7 +106,7 @@ const Home = () => {
       <section className="py-12 bg-muted">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-2 text-center text-foreground">Mais Populares</h2>
-          <p className="text-center text-muted-foreground mb-8">Os favoritos dos estudantes e professores</p>
+          <p className="text-center text-muted-foreground mb-8">Os favoritos dos nossos clientes</p>
           
           {productsLoading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -196,7 +196,7 @@ const Home = () => {
       <section className="py-12 bg-muted">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-bold mb-2 text-center text-foreground">Como Funciona</h2>
-          <p className="text-center text-muted-foreground mb-8">Veja nosso cardápio online e peça pessoalmente</p>
+          <p className="text-center text-muted-foreground mb-8">Veja nosso cardápio online e faça seu pedido</p>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="text-center">
@@ -207,90 +207,14 @@ const Home = () => {
             
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">2</div>
-              <h3 className="font-semibold mb-2 text-foreground">Visite nossa cantina</h3>
-              <p className="text-muted-foreground">Compareça à nossa cantina nos horários de funcionamento.</p>
+              <h3 className="font-semibold mb-2 text-foreground">Faça seu pedido e pague online</h3>
+              <p className="text-muted-foreground">Selecione seus produtos, finalize o pedido e pague via PIX com toda segurança.</p>
             </div>
             
             <div className="text-center">
               <div className="w-16 h-16 rounded-full bg-primary text-white flex items-center justify-center text-2xl font-bold mx-auto mb-4">3</div>
-              <h3 className="font-semibold mb-2 text-foreground">Faça seu pedido pessoalmente</h3>
-              <p className="text-muted-foreground">Realize seu pedido e pagamento diretamente no balcão da cantina.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section className="py-12 bg-background">
-        <div className="container mx-auto px-4">
-          <h2 className="text-2xl font-bold mb-2 text-center text-foreground">O Que Nossos Clientes Dizem</h2>
-          <p className="text-center text-muted-foreground mb-8">Avaliações de quem já experimentou nossos lanches</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-card rounded-xl p-6 shadow-md">
-              <div className="flex items-center mb-4">
-                <div className="text-accent">
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                </div>
-              </div>
-              <p className="text-muted-foreground mb-4">"Os lanches são perfeitos para a correria da faculdade. Rápidos, saborosos e com preço justo. O atendimento é sempre cordial e eficiente."</p>
-              <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mr-3">
-                  <span className="font-medium text-muted-foreground">MR</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-card-foreground">Marcos R.</h4>
-                  <p className="text-xs text-muted-foreground">Estudante de Engenharia</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-card rounded-xl p-6 shadow-md">
-              <div className="flex items-center mb-4">
-                <div className="text-accent">
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-half-fill"></i>
-                </div>
-              </div>
-              <p className="text-muted-foreground mb-4">"A pizza de calabresa é a melhor da cidade! Massa no ponto certo e recheio generoso. Sempre peço pelo app e nunca me decepcionei."</p>
-              <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mr-3">
-                  <span className="font-medium text-muted-foreground">CS</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-card-foreground">Carla S.</h4>
-                  <p className="text-xs text-muted-foreground">Cliente desde 2022</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="bg-card rounded-xl p-6 shadow-md">
-              <div className="flex items-center mb-4">
-                <div className="text-accent">
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                  <i className="ri-star-fill"></i>
-                </div>
-              </div>
-              <p className="text-muted-foreground mb-4">"Atendimento nota 10! O combo família é perfeito para reuniões em casa. Os lanches são de ótima qualidade e o preço é justo."</p>
-              <div className="flex items-center">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mr-3">
-                  <span className="font-medium text-muted-foreground">PL</span>
-                </div>
-                <div>
-                  <h4 className="font-medium text-card-foreground">Pedro L.</h4>
-                  <p className="text-xs text-muted-foreground">Cliente desde 2020</p>
-                </div>
-              </div>
+              <h3 className="font-semibold mb-2 text-foreground">Retire seu pedido</h3>
+              <p className="text-muted-foreground">Assim que o pagamento for confirmado, você será chamado para retirar seu pedido no balcão.</p>
             </div>
           </div>
         </div>

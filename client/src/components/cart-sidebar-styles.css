@@ -1,0 +1,22 @@
+/* Estilos personalizados para o botão X do carrinho */
+.cart-sidebar-custom button[data-state] {
+  width: 36px !important;
+  height: 36px !important;
+  right: 16px !important;
+  top: 16px !important;
+  background-color: rgba(255, 255, 255, 0.1) !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.cart-sidebar-custom button[data-state]:hover {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.cart-sidebar-custom button[data-state] svg {
+  width: 24px !important;
+  height: 24px !important;
+  stroke-width: 2.5 !important;
+} 

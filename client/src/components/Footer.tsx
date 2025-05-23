@@ -8,7 +8,7 @@ const Footer = () => {
           <div>
             <div className="flex items-center space-x-2 mb-4">
               <i className="ri-restaurant-2-fill text-3xl text-primary"></i>
-              <span className="text-xl font-bold text-white font-poppins">Cantina Universitária</span>
+              <span className="text-xl font-bold text-white font-poppins">Cantinho do Sabor</span>
             </div>
             <p className="text-neutral-300 dark:text-neutral-400 mb-4">
               Lanches frescos e saborosos para alimentar seu corpo e mente durante a jornada acadêmica.
@@ -70,7 +70,7 @@ const Footer = () => {
         <div className="border-t border-neutral-700 dark:border-neutral-800 pt-6 mt-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-neutral-400 dark:text-neutral-500 text-sm mb-4 md:mb-0">
-              © {new Date().getFullYear()} Cantina Universitária. Todos os direitos reservados.
+              © {new Date().getFullYear()} Cantinho do Sabor. Todos os direitos reservados.
             </p>
             <div className="flex space-x-4">
               <a href="#" className="text-neutral-400 dark:text-neutral-500 hover:text-white text-sm transition-colors">

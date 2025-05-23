@@ -1,0 +1,8 @@
+{
+  "siteId": "seu-site-id-aqui",
+  "dev": {
+    "framework": "vite",
+    "port": 5173,
+    "targetPort": 5173
+  }
+} 

@@ -1,16 +1,14 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { clearSystemData, getDashboardStats, getOrders, getProducts, syncQueueWithLocalStorage } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { formatDate } from "@/lib/utils/formatDate";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import FileSaver from 'file-saver';
-import { AlertCircle, CreditCard, Download, FileSpreadsheet, Package, Upload } from "lucide-react";
-import Papa from 'papaparse';
-import { useEffect, useMemo, useState } from "react";
+import { Package, Receipt, RefreshCw, Trash2 } from "lucide-react";
+import { useEffect, useMemo } from "react";
 import {
     Bar,
     BarChart,
@@ -25,7 +23,6 @@ import {
     YAxis
 } from "recharts";
 import { useLocation } from "wouter";
-import * as XLSX from 'xlsx';
 
 interface DashboardStats {
   totalSales: number;
@@ -35,20 +32,12 @@ interface DashboardStats {
 interface SalesDataItem {
   name: string;
   vendas: number;
-  lucro?: number;
-  quantidade?: number;
-  categoria?: string;
 }
 
 interface PieDataItem {
   name: string;
   value: number;
 }
-
-// Dados simulados para os gráficos
-const defaultSalesData: SalesDataItem[] = [];
-
-const defaultPieData: PieDataItem[] = [];
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
@@ -58,17 +47,6 @@ const Dashboard = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  const [salesData, setSalesData] = useState<SalesDataItem[]>(defaultSalesData);
-  const [pieData, setPieData] = useState<PieDataItem[]>(defaultPieData);
-  const [showImportTips, setShowImportTips] = useState(true);
-  const [importType, setImportType] = useState<'sales' | 'products'>('sales');
-  
-  // Estado local para estatísticas do dashboard
-  const [localStats, setLocalStats] = useState<DashboardStats>({
-    totalSales: 0,
-    productCount: 0
-  });
-  
   // Verificar se o usuário é administrador
   useEffect(() => {
     if (user && user.type !== "admin") {
@@ -76,258 +54,183 @@ const Dashboard = () => {
     }
   }, [user, navigate]);
   
-  // Consulta às estatísticas da API
-  const { data: apiStats, isLoading } = useQuery<DashboardStats>({
-    queryKey: ['/api/admin/dashboard'],
+  // Função para atualizar todos os dados
+  const refetchAll = async () => {
+    try {
+      console.log("Iniciando sincronização de dados...");
+      
+      // Primeiro, sincronizar dados da fila com localStorage
+      await syncQueueWithLocalStorage();
+      
+      // Em seguida, invalidar as queries para forçar a busca de dados atualizados
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      
+      // Por fim, refetch manual de cada query
+      await refetchStats();
+      await refetchProducts();
+      await refetchOrders();
+      
+      console.log("Sincronização completa!");
+    } catch (error) {
+      console.error("Erro na sincronização de dados:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar os dados. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+  };
+  
+  // Buscar estatísticas do dashboard
+  const { data: stats, isLoading: isLoadingStats, refetch: refetchStats } = useQuery({
+    queryKey: ['dashboard-stats'],
+    queryFn: getDashboardStats,
     enabled: !!user && user.type === "admin",
   });
   
-  // Atualizar stats locais quando os dados da API chegarem
+  // Buscar produtos
+  const { data: products, isLoading: isLoadingProducts, refetch: refetchProducts } = useQuery({
+    queryKey: ['products'],
+    queryFn: getProducts,
+    enabled: !!user && user.type === "admin",
+  });
+  
+  // Buscar pedidos
+  const { data: orders, isLoading: isLoadingOrders, refetch: refetchOrders } = useQuery({
+    queryKey: ['orders'],
+    queryFn: getOrders,
+    enabled: !!user && user.type === "admin",
+  });
+  
+  // Implementar atualização automática a cada 15 segundos (mais frequente)
   useEffect(() => {
-    if (apiStats && !localStats.totalSales) {
-      setLocalStats(apiStats);
-    }
-  }, [apiStats, localStats.totalSales]);
-  
-  // Combinar estatísticas da API com as locais
-  const stats = useMemo(() => {
-    return {
-      totalSales: localStats.totalSales,
-      productCount: localStats.productCount
-    };
-  }, [localStats]);
-  
-  // Função para exportar dados
-  const handleExportData = (dataType: 'sales' | 'products') => {
-    const data = dataType === 'sales' ? salesData : pieData;
-    const fileName = dataType === 'sales' ? 'vendas_semanais.xlsx' : 'vendas_por_categoria.xlsx';
+    // Variável para controlar se uma sincronização já está em andamento
+    let isSyncing = false;
     
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, dataType === 'sales' ? 'Vendas' : 'Categorias');
-    
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const dataBlob = new Blob([excelBuffer], { type: 'application/octet-stream' });
-    
-    FileSaver.saveAs(dataBlob, fileName);
-    
-    toast({
-      title: "Dados exportados com sucesso",
-      description: `O arquivo ${fileName} foi baixado.`,
-    });
-  };
-  
-  // Função para importar dados de Excel/CSV
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>, type: 'sales' | 'products') => {
-    setImportType(type);
-    
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
-    
-    if (fileExtension === 'csv') {
-      Papa.parse(file, {
-        header: true,
-        complete: (results) => {
-          processImportedData(results.data, type);
-        },
-        error: () => {
-          toast({
-            title: "Erro ao importar arquivo",
-            description: "O formato do arquivo CSV é inválido.",
-            variant: "destructive",
-          });
-        }
-      });
-    } else if (fileExtension === 'xlsx' || fileExtension === 'xls') {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const data = e.target?.result;
-          const workbook = XLSX.read(data, { type: 'binary' });
-          const sheetName = workbook.SheetNames[0];
-          const worksheet = workbook.Sheets[sheetName];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          
-          processImportedData(jsonData, type);
-        } catch (error) {
-          toast({
-            title: "Erro ao importar arquivo",
-            description: "O formato do arquivo Excel é inválido.",
-            variant: "destructive",
-          });
-        }
-      };
-      reader.readAsBinaryString(file);
-    } else {
-      toast({
-        title: "Formato de arquivo não suportado",
-        description: "Por favor, use arquivos .xlsx, .xls ou .csv",
-        variant: "destructive",
-      });
-    }
-    
-    // Limpar o valor do input para permitir selecionar o mesmo arquivo novamente
-    event.target.value = "";
-  };
-  
-  const processImportedData = (data: any[], type: 'sales' | 'products') => {
-    if (data.length === 0) {
-      toast({
-        title: "Arquivo vazio",
-        description: "O arquivo importado não contém dados.",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
-      if (type === 'sales') {
-        // Validar estrutura dos dados de vendas
-        const validData = data.filter(item => 
-          item.name && (item.vendas !== undefined || item.valor !== undefined)
-        ).map(item => ({
-          name: String(item.name || item.dia || item.data || ''),
-          vendas: Number(item.vendas || item.valor || 0),
-          lucro: Number(item.lucro || item.profit || 0),
-          quantidade: Number(item.quantidade || item.quantity || 0),
-          categoria: String(item.categoria || item.category || '')
-        }));
-        
-        if (validData.length === 0) {
-          setShowImportTips(true);
-          throw new Error("Formato dos dados inválido");
-        }
-        
-        setSalesData(validData);
-        
-        // Calcular o total de vendas para atualizar as estatísticas
-        const totalVendas = validData.reduce((sum, item) => sum + item.vendas, 0);
-        
-        // Atualizar as estatísticas locais
-        setLocalStats(prev => ({
-          ...prev,
-          totalSales: totalVendas
-        }));
-        
-        // Gerar dados para o gráfico de pizza com base nas categorias dos dados de vendas
-        if (validData.some(item => item.categoria)) {
-          // Agrupar vendas por categoria
-          const categoriaMap = new Map<string, number>();
-          
-          validData.forEach(item => {
-            if (item.categoria) {
-              const categoria = item.categoria;
-              const valorVenda = item.vendas;
-              
-              if (categoriaMap.has(categoria)) {
-                categoriaMap.set(categoria, categoriaMap.get(categoria)! + valorVenda);
-              } else {
-                categoriaMap.set(categoria, valorVenda);
-              }
-            }
-          });
-          
-          // Converter para o formato adequado para o gráfico de pizza
-          if (categoriaMap.size > 0) {
-            const pieChartData = Array.from(categoriaMap.entries()).map(([name, value]) => ({
-              name,
-              value: Math.round((value / validData.reduce((sum, item) => sum + item.vendas, 0)) * 100)
-            }));
-            
-            setPieData(pieChartData);
-            
-            // Atualizar contagem de produtos com base nas categorias
-            setLocalStats(prev => ({
-              ...prev,
-              productCount: categoriaMap.size
-            }));
-            
-            toast({
-              title: "Dados importados com sucesso",
-              description: `${validData.length} registros de vendas foram carregados e o gráfico de categorias foi atualizado automaticamente.`,
-            });
-          } else {
-            toast({
-              title: "Dados importados com sucesso",
-              description: `${validData.length} registros de vendas foram carregados.`,
-            });
-          }
-        } else {
-          toast({
-            title: "Dados importados com sucesso",
-            description: `${validData.length} registros de vendas foram carregados.`,
-          });
-        }
-      } else {
-        // Validar estrutura dos dados de categorias
-        const validData = data.filter(item => 
-          item.name && (item.value !== undefined || item.valor !== undefined || item.quantidade !== undefined)
-        ).map(item => ({
-          name: String(item.name || item.categoria || item.category || ''),
-          value: Number(item.value || item.valor || item.quantidade || 0)
-        }));
-        
-        if (validData.length === 0) {
-          setShowImportTips(true);
-          throw new Error("Formato dos dados inválido");
-        }
-        
-        setPieData(validData);
-        
-        // Atualizar contagem de produtos com base nas categorias importadas
-        setLocalStats(prev => ({
-          ...prev,
-          productCount: validData.length
-        }));
-        
-        toast({
-          title: "Dados importados com sucesso",
-          description: `${validData.length} registros de categorias foram carregados.`,
-        });
+    // Função para sincronizar com verificação de controle
+    const syncData = async () => {
+      if (isSyncing) {
+        console.log("Sincronização já em andamento, ignorando chamada");
+        return;
       }
       
-      setShowImportTips(false);
-    } catch (error) {
-      toast({
-        title: "Erro ao processar dados",
-        description: "Verifique o formato dos dados e tente novamente.",
-        variant: "destructive",
-      });
-    }
-  };
+      try {
+        isSyncing = true;
+        console.log("Atualizando dados do dashboard automaticamente...");
+        await refetchAll();
+      } catch (error) {
+        console.error("Erro na sincronização automática:", error);
+      } finally {
+        isSyncing = false;
+      }
+    };
+    
+    // Forçar atualização imediata ao montar o componente
+    console.log("Forçando atualização inicial dos dados do dashboard...");
+    syncData();
+    
+    // Configurar intervalo de atualização automática mais frequente (15 segundos)
+    const intervalId = setInterval(() => {
+      if (user?.type === "admin") {
+        syncData();
+      }
+    }, 15000); // 15 segundos
+    
+    // Limpar intervalo quando componente for desmontado
+    return () => clearInterval(intervalId);
+  }, [user]); // Usar apenas o user como dependência para evitar ciclos
   
-  // Exemplo de modelo para download
-  const downloadTemplate = (type: 'sales' | 'products') => {
-    let data;
-    let fileName;
+  // Processar dados para o gráfico de vendas por dia
+  const salesData = useMemo(() => {
+    if (!orders) return [];
     
-    if (type === 'sales') {
-      data = [
-        { name: 'Segunda', vendas: 0, lucro: 0, quantidade: 0, categoria: 'Hambúrgueres' },
-        { name: 'Terça', vendas: 0, lucro: 0, quantidade: 0, categoria: 'Pizzas' },
-        { name: 'Quarta', vendas: 0, lucro: 0, quantidade: 0, categoria: 'Bebidas' }
-      ];
-      fileName = 'modelo_vendas.xlsx';
-    } else {
-      data = [
-        { name: 'Hambúrgueres', value: 0 },
-        { name: 'Pizzas', value: 0 },
-        { name: 'Bebidas', value: 0 }
-      ];
-      fileName = 'modelo_categorias.xlsx';
-    }
+    const now = new Date();
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(now.getDate() - i);
+      return date.toLocaleDateString('pt-BR', { weekday: 'short' });
+    }).reverse();
     
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Modelo');
+    // Mapear dias da semana para valores mais curtos
+    const dayMap: Record<string, string> = {
+      'dom.': 'Dom',
+      'seg.': 'Seg',
+      'ter.': 'Ter',
+      'qua.': 'Qua',
+      'qui.': 'Qui',
+      'sex.': 'Sex',
+      'sáb.': 'Sab',
+    };
     
-    const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-    const dataBlob = new Blob([excelBuffer], { type: 'application/octet-stream' });
+    // Calcular vendas por dia
+    const salesByDay = last7Days.map(day => {
+      const dayOrders = orders.filter(order => {
+        const orderDate = new Date(order.created_at);
+        return orderDate.toLocaleDateString('pt-BR', { weekday: 'short' }) === day;
+      });
+      
+      const totalSales = dayOrders.reduce((sum, order) => sum + order.totalAmount, 0);
+      
+      return {
+        name: dayMap[day] || day,
+        vendas: totalSales
+      };
+    });
     
-    FileSaver.saveAs(dataBlob, fileName);
-  };
+    return salesByDay;
+  }, [orders]);
+  
+  // Processar dados para o gráfico de vendas por categoria
+  const pieData = useMemo(() => {
+    if (!orders) return [];
+    
+    // Agrupar produtos por categoria
+    const categoryMap = new Map<string, number>();
+    
+    orders.forEach(order => {
+      order.items.forEach(item => {
+        // Tentar encontrar a categoria correspondente ao produto
+        const product = products?.find(p => p.name === item.name);
+        
+        if (product) {
+          const category = products?.find(p => p.id === product.categoryId)?.name || "Outros";
+          
+          const amount = item.price * item.quantity;
+          if (categoryMap.has(category)) {
+            categoryMap.set(category, categoryMap.get(category)! + amount);
+          } else {
+            categoryMap.set(category, amount);
+          }
+        }
+      });
+    });
+    
+    // Converter para o formato do gráfico de pizza
+    const totalSales = Array.from(categoryMap.values()).reduce((sum, value) => sum + value, 0);
+    
+    return Array.from(categoryMap.entries())
+      .map(([name, value]) => ({
+        name,
+        value: Math.round((value / totalSales) * 100)
+      }))
+      .sort((a, b) => b.value - a.value); // Ordenar do maior para o menor
+  }, [orders, products]);
+  
+  // Calcular total de vendas
+  const totalSales = useMemo(() => {
+    if (!orders) return 0;
+    return orders.reduce((sum, order) => sum + order.totalAmount, 0);
+  }, [orders]);
+  
+  // Obter pedidos recentes (últimos 5)
+  const recentOrders = useMemo(() => {
+    if (!orders) return [];
+    
+    return [...orders]
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .slice(0, 5);
+  }, [orders]);
   
   if (!user || user.type !== "admin") {
     return (
@@ -340,257 +243,213 @@ const Dashboard = () => {
   
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => {
-            setLocalStats({
-              totalSales: 0,
-              productCount: 0
-            });
-            setSalesData([]);
-            setPieData([]);
-            toast({
-              title: "Dashboard zerado",
-              description: "Todos os dados foram redefinidos para zero."
-            });
-          }}
-        >
-          Zerar Dashboard
-        </Button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline"
+            onClick={() => {
+              console.log("Atualizando dados manualmente via botão...");
+              refetchAll();
+              toast({
+                title: "Atualizado",
+                description: "Os dados foram atualizados com sucesso",
+              });
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Atualizar
+          </Button>
+          
+          <Button 
+            variant="destructive"
+            size="icon"
+            onClick={async () => {
+              // Verificação dupla para evitar exclusões acidentais
+              const confirmation = window.confirm(
+                "ATENÇÃO: Essa ação irá limpar todo o histórico de pedidos. Deseja continuar?"
+              );
+              
+              if (!confirmation) return;
+              
+              try {
+                await clearSystemData();
+                
+                // Invalidar todas as queries para forçar a recarga de dados
+                queryClient.invalidateQueries({ queryKey: ['orders'] });
+                queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+                
+                // Atualizar todos os dados
+                await refetchAll();
+                
+                toast({
+                  title: "Dados Limpos",
+                  description: "O histórico de pedidos foi limpo com sucesso",
+                });
+              } catch (error) {
+                console.error("Erro ao limpar dados:", error);
+                toast({
+                  title: "Erro",
+                  description: "Não foi possível limpar os dados. Tente novamente.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            title="Limpar histórico de pedidos"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       
-      <div className="grid gap-4 md:grid-cols-2 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        {/* Vendas Totais */}
         <Card>
-          <CardContent className="p-6 flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Total de Vendas</p>
-              <h3 className="text-2xl font-bold">
-                {isLoading ? (
-                  <span className="animate-pulse">--</span>
-                ) : (
-                  formatCurrency(stats?.totalSales || 0)
-                )}
-              </h3>
-            </div>
-            <div className="bg-primary/20 p-2 rounded-full">
-              <CreditCard className="h-5 w-5 text-primary" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Vendas Totais</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center">
+              <Receipt className="mr-2 h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold">
+                {isLoadingOrders ? "..." : formatCurrency(totalSales)}
+              </span>
             </div>
           </CardContent>
         </Card>
         
+        {/* Produtos */}
         <Card>
-          <CardContent className="p-6 flex items-start justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-1">Produtos</p>
-              <h3 className="text-2xl font-bold">
-                {isLoading ? (
-                  <span className="animate-pulse">--</span>
-                ) : (
-                  stats?.productCount || 0
-                )}
-              </h3>
-            </div>
-            <div className="bg-secondary/20 p-2 rounded-full">
-              <Package className="h-5 w-5 text-secondary" />
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Produtos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center">
+              <Package className="mr-2 h-5 w-5 text-primary" />
+              <span className="text-2xl font-bold">
+                {isLoadingProducts ? "..." : products?.length || 0}
+              </span>
             </div>
           </CardContent>
         </Card>
       </div>
       
-      {showImportTips && (
-        <Alert className="mb-4">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Dica para importação</AlertTitle>
-          <AlertDescription>
-            {importType === 'sales' 
-              ? "Para importar dados de vendas, certifique-se que sua planilha contenha colunas como 'name' (dia da semana), 'vendas' (valor de vendas) e 'categoria' (categoria do produto). A coluna 'categoria' permitirá preencher automaticamente o gráfico de pizza."
-              : "Para importar dados de categorias, certifique-se que sua planilha contenha colunas como 'name' (nome da categoria) e 'value' (valor ou percentual)."}
-            <Button 
-              variant="link" 
-              className="p-0 h-auto font-normal" 
-              onClick={() => downloadTemplate(importType)}
-            >
-              Baixar modelo de planilha
-            </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      <Tabs defaultValue="vendas" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="vendas">Vendas</TabsTrigger>
-          <TabsTrigger value="produtos">Produtos</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="vendas" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
+      <div className="grid gap-4 grid-cols-1 md:grid-cols-3 mb-6">
+        {/* Total de Vendas */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
               <div>
-                <CardTitle>Vendas da Semana</CardTitle>
-                <CardDescription>
-                  Análise de vendas dos últimos 7 dias
-                </CardDescription>
+                <CardTitle>Total de Vendas</CardTitle>
+                <CardDescription>R$ {totalSales.toFixed(2)}</CardDescription>
               </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleExportData('sales')}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Exportar
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => document.getElementById('salesFileInput')?.click()}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Importar
-                </Button>
-                <Input 
-                  id="salesFileInput" 
-                  type="file" 
-                  accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e, 'sales')}
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="h-80">
-              {salesData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={salesData}
-                    margin={{
-                      top: 20,
-                      right: 30,
-                      left: 20,
-                      bottom: 5,
-                    }}
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-80 px-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={salesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <RechartsTooltip
+                    formatter={(value: number) => [`${formatCurrency(value)}`, 'Vendas']}
+                  />
+                  <Bar dataKey="vendas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Distribuição de Categorias */}
+        <Card className="md:col-span-1">
+          <CardHeader>
+            <CardTitle>Categorias</CardTitle>
+            <CardDescription>Distribuição de vendas</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="h-80 px-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}%`}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <RechartsTooltip 
-                      formatter={(value: number, name: string) => {
-                        const formattedValue = name === 'quantidade' ? value : formatCurrency(value);
-                        const label = name === 'vendas' ? 'Vendas' : 
-                                      name === 'lucro' ? 'Lucro' : 
-                                      name === 'quantidade' ? 'Quantidade' : name;
-                        return [formattedValue, label];
-                      }} 
-                    />
-                    <Legend 
-                      formatter={(value) => {
-                        return value === 'vendas' ? 'Vendas' : 
-                               value === 'lucro' ? 'Lucro' : 
-                               value === 'quantidade' ? 'Quantidade' : value;
-                      }}
-                    />
-                    <Bar dataKey="vendas" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    {salesData[0]?.lucro !== undefined && (
-                      <Bar dataKey="lucro" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
-                    )}
-                    {salesData[0]?.quantidade !== undefined && (
-                      <Bar dataKey="quantidade" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
-                    )}
-                  </BarChart>
-                </ResponsiveContainer>
+                    {pieData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip formatter={(value: number) => [`${value}%`, 'Porcentagem']} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Pedidos Recentes */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Pedidos Recentes</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Pedido</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoadingOrders ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">Carregando...</TableCell>
+                </TableRow>
+              ) : recentOrders.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center">Nenhum pedido encontrado</TableCell>
+                </TableRow>
               ) : (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                  <FileSpreadsheet className="mb-2 h-10 w-10" />
-                  <p>Nenhum dado disponível</p>
-                  <p className="text-sm mt-2">Importe dados clicando no botão "Importar" acima</p>
-                </div>
+                recentOrders.map((order) => (
+                  <TableRow key={order.id}>
+                    <TableCell className="font-medium">{order.ticketNumber || `#${order.id}`}</TableCell>
+                    <TableCell>{order.customer.name}</TableCell>
+                    <TableCell>{formatDate(order.created_at)}</TableCell>
+                    <TableCell>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium 
+                        ${order.status === 'recebido' ? 'bg-yellow-100 text-yellow-800' : 
+                          order.status === 'em_preparo' ? 'bg-blue-100 text-blue-800' :
+                          order.status === 'pronto' ? 'bg-green-100 text-green-800' :
+                          order.status === 'entregue' ? 'bg-gray-100 text-gray-800' :
+                          'bg-red-100 text-red-800'}`}
+                      >
+                        {order.status === 'recebido' ? 'Recebido' :
+                         order.status === 'em_preparo' ? 'Em Preparo' :
+                         order.status === 'pronto' ? 'Pronto' :
+                         order.status === 'entregue' ? 'Entregue' : 'Cancelado'}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right">{formatCurrency(order.totalAmount)}</TableCell>
+                  </TableRow>
+                ))
               )}
-            </CardContent>
-            <CardFooter className="border-t p-4">
-              <div className="text-xs text-muted-foreground">
-                <FileSpreadsheet className="inline mr-1 h-3 w-3" />
-                <span>Importe dados de planilhas Excel (.xlsx) ou CSV para personalizar este gráfico.</span>
-              </div>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="produtos" className="space-y-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
-                <CardTitle>Distribuição de Vendas por Categoria</CardTitle>
-                <CardDescription>
-                  Porcentagem de vendas por categoria de produto
-                </CardDescription>
-              </div>
-              <div className="flex items-center gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => handleExportData('products')}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Exportar
-                </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => document.getElementById('productsFileInput')?.click()}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Importar
-                </Button>
-                <Input 
-                  id="productsFileInput" 
-                  type="file" 
-                  accept=".csv, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel" 
-                  className="hidden"
-                  onChange={(e) => handleFileUpload(e, 'products')}
-                />
-              </div>
-            </CardHeader>
-            <CardContent className="h-80">
-              {pieData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      outerRadius={120}
-                      fill="#8884d8"
-                      dataKey="value"
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <RechartsTooltip formatter={(value: number) => [`${value}%`, "Porcentagem"]} />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-muted-foreground">
-                  <FileSpreadsheet className="mb-2 h-10 w-10" />
-                  <p>Nenhum dado disponível</p>
-                  <p className="text-sm mt-2">Importe dados clicando no botão "Importar" acima</p>
-                </div>
-              )}
-            </CardContent>
-            <CardFooter className="border-t p-4">
-              <div className="text-xs text-muted-foreground">
-                <FileSpreadsheet className="inline mr-1 h-3 w-3" />
-                <span>Importe dados de planilhas Excel (.xlsx) ou CSV para personalizar este gráfico.</span>
-              </div>
-            </CardFooter>
-          </Card>
-        </TabsContent>
-      </Tabs>
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 };

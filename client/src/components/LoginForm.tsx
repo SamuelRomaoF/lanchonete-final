@@ -64,7 +64,7 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
         localStorage.removeItem('rememberedEmail');
       }
 
-      // Tentativa de login
+      // Tentativa de login usando Supabase
       const user = await login(data.email, data.password);
       
       // Exibir toast de sucesso
@@ -73,21 +73,33 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
         description: "Bem-vindo ao painel administrativo!",
       });
       
-      // Fechar o modal de login se necessário
+      // Chamar callback de sucesso se existir
       if (onSuccess) {
         onSuccess();
       }
       
-      // Navegar diretamente para o painel admin se for um administrador
-      if (user && user.type === 'admin') {
+      // Navegar para o painel admin
         navigate('/admin');
+      
+    } catch (error: any) {
+      console.error("Erro no login:", error);
+      
+      // Determinar mensagem de erro baseada na resposta
+      let errorMessage = "Falha na autenticação";
+      
+      if (error.message) {
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Email ou senha incorretos";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Email não confirmado";
+        } else {
+          errorMessage = error.message;
+        }
       }
       
-    } catch (error) {
-      console.error("Erro no login:", error);
       toast({
         title: "Erro no login",
-        description: "Email ou senha incorretos",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -128,7 +140,7 @@ const LoginForm = ({ onSuccess }: LoginFormProps) => {
                     type={showPassword ? "text" : "password"}
                     placeholder="Sua senha"
                     {...field}
-                    autoFocus
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"

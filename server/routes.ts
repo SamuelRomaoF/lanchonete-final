@@ -1,4 +1,4 @@
-import { insertOrderSchema, insertPaymentSchema } from "@shared/schema";
+import { insertOrderSchema } from "@shared/schema";
 import * as bcrypt from 'bcrypt';
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
@@ -98,9 +98,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
   
   // ==== Rotas de categorias ====
-  app.get('/api/categories', (req, res) => {
+  app.get('/api/categories', async (req, res) => {
     try {
-      const categories = menuStorage.loadCategories();
+      const categories = await menuStorage.loadCategories();
       res.json(categories);
     } catch (error) {
       console.error('Erro ao listar categorias:', error);
@@ -110,13 +110,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/categories/:id', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       
-      if (isNaN(id)) {
+      if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
       
-      const category = await storage.getCategory(id);
+      const categories = await menuStorage.loadCategories();
+      const category = categories.find(c => c.id === id);
       
       if (!category) {
         return res.status(404).json({ message: "Categoria não encontrada" });
@@ -129,9 +130,9 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.post('/api/categories', adminMiddleware, (req, res) => {
+  app.post('/api/categories', adminMiddleware, async (req, res) => {
     try {
-      const newCategory = menuStorage.createCategory(req.body);
+      const newCategory = await menuStorage.createCategory(req.body);
       res.status(201).json(newCategory);
     } catch (error) {
       console.error('Erro ao criar categoria:', error);
@@ -139,10 +140,10 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.put('/api/categories/:id', adminMiddleware, (req, res) => {
+  app.put('/api/categories/:id', adminMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const updatedCategory = menuStorage.updateCategory(id, req.body);
+      const id = req.params.id;
+      const updatedCategory = await menuStorage.updateCategory(id, req.body);
       
       if (!updatedCategory) {
         return res.status(404).json({ error: 'Categoria não encontrada' });
@@ -155,10 +156,10 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.delete('/api/categories/:id', adminMiddleware, (req, res) => {
+  app.delete('/api/categories/:id', adminMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const success = menuStorage.deleteCategory(id);
+      const id = req.params.id;
+      const success = await menuStorage.deleteCategory(id);
       
       if (!success) {
         return res.status(404).json({ error: 'Categoria não encontrada' });
@@ -172,9 +173,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
   
   // ==== Rotas de produtos ====
-  app.get('/api/products', (req, res) => {
+  app.get('/api/products', async (req, res) => {
     try {
-      const products = menuStorage.loadProducts();
+      const products = await menuStorage.loadProducts();
       res.json(products);
     } catch (error) {
       console.error('Erro ao listar produtos:', error);
@@ -182,10 +183,10 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.get('/api/products/category/:id', (req, res) => {
+  app.get('/api/products/category/:id', async (req, res) => {
     try {
-      const categoryId = parseInt(req.params.id);
-      const products = menuStorage.getProductsByCategory(categoryId);
+      const categoryId = req.params.id;
+      const products = await menuStorage.getProductsByCategory(categoryId);
       res.json(products);
     } catch (error) {
       console.error('Erro ao listar produtos por categoria:', error);
@@ -193,9 +194,9 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.get('/api/products/featured', (req, res) => {
+  app.get('/api/products/featured', async (req, res) => {
     try {
-      const products = menuStorage.getFeaturedProducts();
+      const products = await menuStorage.getFeaturedProducts();
       res.json(products);
     } catch (error) {
       console.error('Erro ao listar produtos em destaque:', error);
@@ -205,23 +206,24 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/products/promotions', async (req, res) => {
     try {
-      const products = await storage.getPromotionProducts();
-      return res.status(200).json(products);
+      const products = await menuStorage.getPromotionProducts();
+      res.json(products);
     } catch (error) {
-      console.error('Erro ao buscar produtos em promoção:', error);
-      return res.status(500).json({ message: "Erro ao buscar produtos em promoção" });
+      console.error('Erro ao listar produtos em promoção:', error);
+      res.status(500).json({ error: 'Erro ao listar produtos em promoção' });
     }
   });
   
   app.get('/api/products/:id', async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       
-      if (isNaN(id)) {
+      if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
       
-      const product = await storage.getProduct(id);
+      const products = await menuStorage.loadProducts();
+      const product = products.find(p => p.id === id);
       
       if (!product) {
         return res.status(404).json({ message: "Produto não encontrado" });
@@ -234,18 +236,9 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.post('/api/products', adminMiddleware, (req, res) => {
+  app.post('/api/products', adminMiddleware, async (req, res) => {
     try {
-      // Validar e criar o produto
-      const productData = {
-        ...req.body,
-        createdAt: new Date(),
-        isFeatured: req.body.isFeatured || false,
-        isPromotion: req.body.isPromotion || false,
-        available: req.body.available !== false
-      };
-      
-      const newProduct = menuStorage.createProduct(productData);
+      const newProduct = await menuStorage.createProduct(req.body);
       res.status(201).json(newProduct);
     } catch (error) {
       console.error('Erro ao criar produto:', error);
@@ -253,10 +246,10 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.put('/api/products/:id', adminMiddleware, (req, res) => {
+  app.put('/api/products/:id', adminMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const updatedProduct = menuStorage.updateProduct(id, req.body);
+      const id = req.params.id;
+      const updatedProduct = await menuStorage.updateProduct(id, req.body);
       
       if (!updatedProduct) {
         return res.status(404).json({ error: 'Produto não encontrado' });
@@ -269,10 +262,10 @@ export async function registerRoutes(app: Express): Promise<void> {
     }
   });
   
-  app.delete('/api/products/:id', adminMiddleware, (req, res) => {
+  app.delete('/api/products/:id', adminMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      const success = menuStorage.deleteProduct(id);
+      const id = req.params.id;
+      const success = await menuStorage.deleteProduct(id);
       
       if (!success) {
         return res.status(404).json({ error: 'Produto não encontrado' });
@@ -409,7 +402,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rotas de pagamentos ====
   app.post('/api/payments', authMiddleware, async (req, res) => {
     try {
-      const result = insertPaymentSchema.safeParse(req.body);
+      const result = insertOrderSchema.safeParse(req.body);
       
       if (!result.success) {
         return res.status(400).json(handleZodError(result.error));
@@ -547,11 +540,10 @@ export async function registerRoutes(app: Express): Promise<void> {
     res.json({ reset: wasReset });
   });
   
-  // Sincronizar dados do cliente com o servidor
-  app.post('/api/queue/sync', (req, res) => {
+  // Sincronizar dados da API com o arquivo local
+  app.post('/api/queue/sync', async (req, res) => {
     try {
-      console.log('=== INÍCIO DA SINCRONIZAÇÃO ===');
-      console.log('Recebido pedido de sincronização');
+      console.log('Recebida solicitação para sincronizar fila');
       
       const { orders, currentPrefix, currentNumber } = req.body;
       
@@ -588,16 +580,17 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (newOrders.length > 0) {
         console.log(`Detectados ${newOrders.length} pedidos novos para notificação`);
         
-        // Tentar enviar emails para cada pedido novo
-        newOrders.forEach(async (order: any) => {
+        // Usamos Promise.all para evitar envios duplicados e garantir que esperamos as notificações
+        await Promise.all(newOrders.map(async (order: any) => {
           try {
-            console.log('Tentando enviar email para o pedido:', order.id);
-            const emailSent = await emailService.sendNewOrderNotification(order);
-            console.log('Resultado do envio de email:', emailSent);
+            // Não enviamos e-mail aqui, para evitar duplicidade
+            console.log('Pedido sincronizado:', order.id);
+            return true;
           } catch (emailError) {
-            console.error('Erro ao enviar email para pedido:', order.id, emailError);
+            console.error('Erro ao processar pedido:', order.id, emailError);
+            return null;
           }
-        });
+        }));
       }
       
       if (orders.length > 0) {
@@ -678,11 +671,24 @@ export async function registerRoutes(app: Express): Promise<void> {
       // Carregar dados atuais
       const queueData = loadQueueData();
       
+      // Verificar se o pedido já existe (evita duplicação)
+      const pedidoExistente = queueData.orders.find(existingOrder => existingOrder.id === order.id);
+      if (pedidoExistente) {
+        console.log(`Pedido com ID ${order.id} já existe na fila. Evitando duplicação.`);
+        return res.status(200).json({
+          success: true,
+          message: "Pedido já registrado anteriormente"
+        });
+      }
+      
       // Adicionar pedido
       queueData.orders.push(order);
       
       // Salvar dados atualizados
       saveQueueData(queueData);
+      
+      // Marcador para controlar se o email já foi enviado
+      let emailJaEnviado = false;
       
       // Tentativas de notificação em paralelo
       const notificationPromises = [];
@@ -692,7 +698,8 @@ export async function registerRoutes(app: Express): Promise<void> {
       notificationPromises.push(
         emailService.sendNewOrderNotification(order)
           .then(result => {
-            console.log('Resultado do envio de e-mail:', result);
+            emailJaEnviado = true;
+            console.log('E-mail de notificação enviado:', result);
             return result;
           })
           .catch(emailError => {
@@ -1061,6 +1068,58 @@ export async function registerRoutes(app: Express): Promise<void> {
       console.error('Erro ao verificar sistema de armazenamento:', error);
       return res.status(500).json({ 
         message: "Erro ao verificar sistema de armazenamento",
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
+  // Endpoint para enviar e-mail personalizado
+  app.post('/api/email/send', async (req, res) => {
+    try {
+      const { to, subject, message } = req.body;
+      
+      if (!to || !subject || !message) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Dados incompletos: to, subject e message são obrigatórios" 
+        });
+      }
+      
+      console.log('=== ENVIANDO E-MAIL PERSONALIZADO ===');
+      console.log(`Para: ${to}`);
+      console.log(`Assunto: ${subject}`);
+      
+      const mailOptions = {
+        from: emailService.getConfig().from,
+        to: to,
+        subject: subject,
+        html: message
+      };
+      
+      // Testar conexão antes de enviar
+      const connectionTest = await emailService.testConnection();
+      if (!connectionTest) {
+        console.error('Erro na conexão com servidor de e-mail. Não será possível enviar.');
+        return res.status(500).json({ 
+          success: false,
+          message: "Erro na conexão com o servidor de e-mail" 
+        });
+      }
+      
+      // Enviar o e-mail
+      const info = await emailService.getTransporter().sendMail(mailOptions);
+      console.log('E-mail personalizado enviado com sucesso:', info.messageId);
+      
+      return res.status(200).json({
+        success: true,
+        message: "E-mail enviado com sucesso",
+        messageId: info.messageId
+      });
+    } catch (error) {
+      console.error("Erro ao enviar e-mail personalizado:", error);
+      return res.status(500).json({ 
+        success: false,
+        message: "Erro ao enviar e-mail",
         error: error instanceof Error ? error.message : String(error)
       });
     }

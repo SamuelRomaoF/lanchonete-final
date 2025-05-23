@@ -17,12 +17,14 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
+import { useCart } from "@/context/CartContext";
 import { OrderTicket, useOrderQueue } from "@/context/OrderQueueContext";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 
 const statusConfig: Record<string, {color: string, text: string}> = {
-  recebido: { color: "bg-yellow-500", text: "Recebido" },
+  recebido: { color: "bg-slate-200 dark:bg-slate-700", text: "Recebido" },
   em_preparo: { color: "bg-orange-500", text: "Em preparo" },
   pronto: { color: "bg-green-500", text: "Pronto para retirada" },
   entregue: { color: "bg-gray-500", text: "Entregue" }
@@ -32,6 +34,8 @@ const OrderHistory = () => {
   const { getOrderHistory, clearOrderHistory } = useOrderQueue();
   const [selectedOrder, setSelectedOrder] = useState<OrderTicket | null>(null);
   const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const { addItem } = useCart();
+  const [, setLocation] = useLocation();
   
   // Obter o histórico de pedidos do localStorage
   const orderHistory = getOrderHistory();
@@ -61,6 +65,32 @@ const OrderHistory = () => {
   const handleClearHistory = () => {
     clearOrderHistory();
     setConfirmClearOpen(false);
+  };
+  
+  // Função para adicionar os itens de um pedido ao carrinho e redirecionar
+  const handleOrderAgain = (order: OrderTicket) => {
+    // Para cada item do pedido, adicioná-lo ao carrinho
+    order.items.forEach(item => {
+      // Convertemos para o formato esperado pelo carrinho
+      const product = {
+        id: String(item.id), // Convertendo para string
+        name: item.name,
+        price: item.price,
+        // Adicionando propriedades obrigatórias para o tipo Product
+        isFeatured: false,
+        isPromotion: false,
+        categoryId: "1", // Valor padrão
+        available: true,
+        // Propriedades opcionais
+        description: item.notes || undefined,
+        imageUrl: undefined
+      };
+      
+      addItem(product, item.quantity);
+    });
+    
+    // Redirecionar para a página de carrinho
+    setLocation("/carrinho");
   };
   
   return (
@@ -123,12 +153,23 @@ const OrderHistory = () => {
               </CardContent>
               <CardFooter className="flex justify-between">
                 <p className="font-semibold">{formatCurrency(order.total)}</p>
-                <Button 
-                  variant="outline" 
-                  onClick={() => handleViewDetails(order)}
-                >
-                  Ver Detalhes
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="secondary"
+                    onClick={() => handleOrderAgain(order)}
+                    className="text-sm"
+                  >
+                    <i className="ri-refresh-line mr-1"></i>
+                    Pedir novamente
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleViewDetails(order)}
+                    className="text-sm"
+                  >
+                    Ver Detalhes
+                  </Button>
+                </div>
               </CardFooter>
             </Card>
           ))}

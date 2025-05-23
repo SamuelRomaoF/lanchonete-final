@@ -4,10 +4,13 @@ import { z } from "zod";
 export type UserType = "cliente" | "admin";
 
 // Enum para status de pedidos
-export type OrderStatus = "pendente" | "confirmado" | "preparo" | "entrega" | "concluido" | "cancelado";
+export type OrderStatus = "recebido" | "em_preparo" | "pronto" | "entregue" | "cancelado";
 
 // Enum para métodos de pagamento
-export type PaymentMethod = "pix" | "cartao";
+export type PaymentMethod = "pix" | "cartao" | "dinheiro";
+
+// Enum para status de pagamento
+export type PaymentStatus = "pending" | "paid" | "cancelled";
 
 // Tipos de entidades
 export interface User {
@@ -22,14 +25,14 @@ export interface User {
 }
 
 export interface Category {
-  id: number;
+  id: string | number;  // Aceita tanto string (formato do Supabase) quanto number
   name: string;
   description?: string;
   imageUrl?: string;
 }
 
 export interface Product {
-  id: number;
+  id: string | number;  // Aceita tanto string (formato do Supabase) quanto number
   name: string;
   description?: string;
   price: number;
@@ -37,38 +40,52 @@ export interface Product {
   isFeatured: boolean;
   isPromotion: boolean;
   oldPrice?: number;
-  categoryId: number;
+  categoryId: string | number;  // Aceita tanto string (formato do Supabase) quanto number
   available: boolean;
-  createdAt: Date;
+  createdAt?: Date;
 }
 
-export interface Order {
-  id: number;
-  userId: number;
-  status: OrderStatus;
-  total: number;
-  address: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
+// Item de pedido
 export interface OrderItem {
-  id: number;
-  orderId: number;
-  productId: number;
+  id?: number;
+  productId?: number;
+  name: string;
   quantity: number;
   price: number;
-  subtotal: number;
+  notes?: string;
 }
 
-export interface Payment {
+// Cliente do pedido
+export interface Customer {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+// Detalhes de pagamento
+export interface PaymentDetails {
+  paidAt?: string;
+  transactionId?: string;
+  pixKey?: string;
+  qrCodeData?: string;
+  changeAmount?: number;
+}
+
+// Pedido
+export interface Order {
   id: number;
-  orderId: number;
-  method: PaymentMethod;
-  status: string;
-  externalId?: string;
-  amount: number;
-  createdAt: Date;
+  ticketNumber?: string;
+  items: OrderItem[];
+  customer: Customer;
+  totalAmount: number;
+  status: OrderStatus;
+  paymentMethod: PaymentMethod;
+  paymentStatus: PaymentStatus;
+  paymentDetails?: PaymentDetails;
+  notes?: string;
+  created_at: string;
+  updated_at?: string;
 }
 
 // Schemas de validação com Zod
@@ -84,14 +101,14 @@ export const userSchema = z.object({
 });
 
 export const categorySchema = z.object({
-  id: z.number().optional(),
+  id: z.union([z.string(), z.number()]).optional(),
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
   imageUrl: z.string().url().optional()
 });
 
 export const productSchema = z.object({
-  id: z.number().optional(),
+  id: z.union([z.string(), z.number()]).optional(),
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
   description: z.string().optional(),
   price: z.number().positive("Preço deve ser um valor positivo"),
@@ -99,52 +116,58 @@ export const productSchema = z.object({
   isFeatured: z.boolean().default(false),
   isPromotion: z.boolean().default(false),
   oldPrice: z.number().positive().optional(),
-  categoryId: z.number().int().positive(),
+  categoryId: z.union([z.string(), z.number()]),
   available: z.boolean().default(true),
   createdAt: z.date().optional()
 });
 
-export const orderSchema = z.object({
-  id: z.number().optional(),
-  userId: z.number().int().positive(),
-  status: z.enum(["pendente", "confirmado", "preparo", "entrega", "concluido", "cancelado"]).default("pendente"),
-  total: z.number().positive("Total deve ser um valor positivo"),
-  address: z.string().min(5, "Endereço deve ser informado"),
-  createdAt: z.date().optional(),
-  updatedAt: z.date().optional()
-});
-
 export const orderItemSchema = z.object({
   id: z.number().optional(),
-  orderId: z.number().int().positive(),
-  productId: z.number().int().positive(),
+  productId: z.number().optional(),
+  name: z.string(),
   quantity: z.number().int().positive("Quantidade deve ser um valor positivo"),
   price: z.number().positive("Preço deve ser um valor positivo"),
-  subtotal: z.number().positive("Subtotal deve ser um valor positivo")
+  notes: z.string().optional()
 });
 
-export const paymentSchema = z.object({
+export const customerSchema = z.object({
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  email: z.string().email("Email inválido").optional(),
+  phone: z.string().optional(),
+  address: z.string().optional()
+});
+
+export const paymentDetailsSchema = z.object({
+  paidAt: z.string().optional(),
+  transactionId: z.string().optional(),
+  pixKey: z.string().optional(),
+  qrCodeData: z.string().optional(),
+  changeAmount: z.number().optional()
+});
+
+export const orderSchema = z.object({
   id: z.number().optional(),
-  orderId: z.number().int().positive(),
-  method: z.enum(["pix", "cartao"]),
-  status: z.string().default("pendente"),
-  externalId: z.string().optional(),
-  amount: z.number().positive("Valor deve ser positivo"),
-  createdAt: z.date().optional()
+  ticketNumber: z.string().optional(),
+  items: z.array(orderItemSchema),
+  customer: customerSchema,
+  totalAmount: z.number().positive("Total deve ser um valor positivo"),
+  status: z.enum(["recebido", "em_preparo", "pronto", "entregue", "cancelado"]).default("recebido"),
+  paymentMethod: z.enum(["pix", "cartao", "dinheiro"]),
+  paymentStatus: z.enum(["pending", "paid", "cancelled"]).default("pending"),
+  paymentDetails: paymentDetailsSchema.optional(),
+  notes: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional()
 });
 
 // Schemas para inserção
 export const insertUserSchema = userSchema.omit({ id: true, createdAt: true });
 export const insertCategorySchema = categorySchema.omit({ id: true });
 export const insertProductSchema = productSchema.omit({ id: true, createdAt: true });
-export const insertOrderSchema = orderSchema.omit({ id: true, createdAt: true, updatedAt: true });
-export const insertOrderItemSchema = orderItemSchema.omit({ id: true });
-export const insertPaymentSchema = paymentSchema.omit({ id: true, createdAt: true });
+export const insertOrderSchema = orderSchema.omit({ id: true, created_at: true, updated_at: true });
 
 // Tipos de Inserção
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
-export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;

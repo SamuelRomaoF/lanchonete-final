@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { createCategory, deleteCategory, getCategories, updateCategory } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Category } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -45,7 +45,8 @@ const CategoryManagement = () => {
   
   // Buscar categorias
   const { data: categories, isLoading: categoriesLoading } = useQuery<Category[]>({
-    queryKey: ['/api/categories'],
+    queryKey: ['categories'],
+    queryFn: getCategories,
     enabled: !!user && user.type === "admin",
   });
   
@@ -61,10 +62,10 @@ const CategoryManagement = () => {
   // Mutation para criar categoria
   const createCategoryMutation = useMutation({
     mutationFn: (data: CategoryFormValues) => {
-      return apiRequest("POST", "/api/categories", data);
+      return createCategory(data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast({
         title: "Categoria criada",
         description: "Categoria criada com sucesso",
@@ -84,11 +85,11 @@ const CategoryManagement = () => {
   
   // Mutation para atualizar categoria
   const updateCategoryMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: CategoryFormValues }) => {
-      return apiRequest("PUT", `/api/categories/${id}`, data);
+    mutationFn: ({ id, data }: { id: number | string; data: CategoryFormValues }) => {
+      return updateCategory(id.toString(), data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
       toast({
         title: "Categoria atualizada",
         description: "Categoria atualizada com sucesso",
@@ -108,21 +109,19 @@ const CategoryManagement = () => {
   
   // Mutation para excluir categoria
   const deleteCategoryMutation = useMutation({
-    mutationFn: (id: number) => {
-      // Garante que o ID é tratado corretamente, mesmo quando for 0
-      console.log('Tentando excluir categoria com ID:', id, typeof id);
-      
-      // Adicionar parâmetros para evitar cache
-      const timestamp = new Date().getTime();
-      const noCache = `?_nocache=${timestamp}`;
-      
-      return apiRequest("DELETE", `/api/categories/${id}${noCache}`, {
-        forceDelete: true, // Parâmetro adicional para forçar exclusão
-        _timestamp: timestamp // Parâmetro adicional para evitar cache
-      });
+    mutationFn: (id: number | string) => {
+      console.log("Excluindo categoria com ID:", id);
+      // Usar a função direta do Supabase
+      return deleteCategory(id.toString());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+      // Forçar recarregamento imediato de categorias
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      // Aguardar um momento e forçar nova atualização para garantir
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['categories'] });
+      }, 1000);
+      
       toast({
         title: "Categoria excluída",
         description: "Categoria excluída com sucesso",
@@ -130,16 +129,21 @@ const CategoryManagement = () => {
       setIsDeleteDialogOpen(false);
       setCurrentCategory(null);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("Erro ao excluir categoria:", error);
-      // Mesmo com erro, forçar atualização da interface
-      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
+      
+      // Mostrar mensagem específica se vier do servidor
+      const errorMessage = error.message || "Erro ao excluir categoria. Tente novamente.";
+      
       toast({
         title: "Erro",
-        description: "Erro ao excluir categoria. A página será atualizada mesmo assim.",
+        description: errorMessage,
         variant: "destructive",
       });
-      // Fechar o modal de exclusão mesmo em caso de erro
+      
+      // Mesmo com erro, forçar atualização da lista para confirmar estado atual
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+      
       setIsDeleteDialogOpen(false);
       setCurrentCategory(null);
     },
@@ -164,22 +168,14 @@ const CategoryManagement = () => {
   
   const handleDeleteCategory = () => {
     if (currentCategory) {
-      console.log(`Iniciando exclusão da categoria: ${currentCategory.name} (ID: ${currentCategory.id})`);
-      
-      // Pré-invalidar os dados para forçar recarregamento imediato
-      queryClient.invalidateQueries({ queryKey: ['/api/categories'] });
-      
-      // Iniciar a exclusão
-      deleteCategoryMutation.mutate(currentCategory.id);
-      
-      // Fechar o modal de confirmação imediatamente para melhor experiência
-      setIsDeleteDialogOpen(false);
-      
-      // Mostrar toast informando que a operação está em andamento
+      // Mostrar mensagem de processamento
       toast({
-        title: "Excluindo categoria",
-        description: "A categoria está sendo excluída...",
+        title: "Processando",
+        description: "Excluindo categoria...",
       });
+      
+      // Executar a mutação
+      deleteCategoryMutation.mutate(currentCategory.id);
     }
   };
   
@@ -230,7 +226,22 @@ const CategoryManagement = () => {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center">
         <h1 className="text-2xl font-bold">Gerenciamento de Categorias</h1>
+          <Button 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['categories'] })}
+            variant="outline"
+            className="ml-3"
+            title="Atualizar lista"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 2v6h-6"></path>
+              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
+              <path d="M3 22v-6h6"></path>
+              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
+            </svg>
+          </Button>
+        </div>
         <Button onClick={openCreateDialog} className="bg-primary hover:bg-primary-dark">
           <Plus className="mr-2 h-4 w-4" /> Nova Categoria
         </Button>

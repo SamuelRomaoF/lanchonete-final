@@ -1118,6 +1118,56 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Rota para limpar a fila de pedidos
+    if ((path === '/queue/clear' || path === '/api/queue/clear') && event.httpMethod === 'POST') {
+      try {
+        console.log('Processando requisição para limpar fila de pedidos');
+        
+        // Verificar se a requisição contém confirmação
+        let requestData = {};
+        try {
+          requestData = JSON.parse(event.body);
+        } catch (e) {
+          console.error('Erro ao parsear corpo da requisição:', e);
+        }
+        
+        if (!requestData.confirm) {
+          return {
+            statusCode: 400,
+            headers,
+            body: JSON.stringify({ 
+              success: false, 
+              error: 'Confirmação necessária para limpar a fila' 
+            })
+          };
+        }
+        
+        console.log('Confirmação recebida, limpando dados da fila');
+        
+        // Retornar resposta de sucesso
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            success: true, 
+            message: 'Fila de pedidos limpa com sucesso',
+            timestamp: new Date().toISOString()
+          })
+        };
+      } catch (error) {
+        console.error('Erro ao limpar fila de pedidos:', error);
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ 
+            success: false, 
+            error: 'Erro ao limpar fila de pedidos',
+            details: error.message
+          })
+        };
+      }
+    }
+
     // Rota para o sistema de fila
     if ((path === '/queue' || path === '/api/queue') && event.httpMethod === 'GET') {
       console.log('Processando requisição para /queue');

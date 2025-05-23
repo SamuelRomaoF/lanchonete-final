@@ -1,12 +1,5 @@
-import LoginForm from "@/components/LoginForm";
+import CartSidebar from "@/components/CartSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogHeader,
-    DialogTitle,
-} from "@/components/ui/dialog";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -16,14 +9,16 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [loginOpen, setLoginOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   
   const { user, logout } = useAuth();
+  const { getTotalItems } = useCart();
   const [location, navigate] = useLocation();
   
   // Fechar menu mobile ao mudar de página
@@ -41,6 +36,9 @@ const Navbar = () => {
   // Verificar se é página de admin
   const isAdminPage = location.startsWith('/admin');
 
+  // Total de itens no carrinho
+  const totalItems = getTotalItems();
+
   return (
     <>
       <nav className="sticky top-0 z-50 bg-background text-foreground shadow-md transition-colors duration-200">
@@ -49,7 +47,7 @@ const Navbar = () => {
             <div className="flex items-center space-x-2">
               <Link href="/" className="flex items-center space-x-2">
                 <i className="ri-restaurant-2-fill text-3xl text-primary"></i>
-                <span className="text-2xl font-bold text-primary font-poppins">FastLanche Faculdade</span>
+                <span className="text-2xl font-bold text-primary font-poppins">Cantinho do Sabor</span>
               </Link>
             </div>
             
@@ -66,11 +64,6 @@ const Navbar = () => {
                     Histórico de Pedidos
                   </Link>
                 )}
-                {user && user.type === 'admin' && (
-                  <Link href="/admin" className="hover:text-primary transition-colors">
-                    Área Admin
-                  </Link>
-                )}
               </div>
             )}
             
@@ -85,6 +78,9 @@ const Navbar = () => {
                 <Link href="/admin/produtos" className="hover:text-primary transition-colors">
                   Produtos
                 </Link>
+                <Link href="/admin/pedidos/historico" className="hover:text-primary transition-colors">
+                  Histórico de Pedidos
+                </Link>
                 <Link href="/" className="hover:text-primary transition-colors">
                   Loja
                 </Link>
@@ -92,9 +88,26 @@ const Navbar = () => {
             )}
             
             <div className="flex items-center space-x-4">
+              {/* Carrinho (apenas para páginas não admin) */}
+              {!isAdminPage && (
+                <button 
+                  className="flex items-center relative"
+                  onClick={() => setCartOpen(true)}
+                  aria-label="Abrir carrinho"
+                >
+                  <i className="ri-shopping-cart-line text-xl"></i>
+                  {totalItems > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-primary text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
+              )}
+              
               <ThemeToggle />
               
-              {user ? (
+              {/* Exibir apenas para usuários logados */}
+              {user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-1 text-sm">
                     <i className="ri-user-line text-xl"></i>
@@ -115,14 +128,6 @@ const Navbar = () => {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              ) : (
-                <button 
-                  className="flex items-center space-x-1 text-sm"
-                  onClick={() => setLoginOpen(true)}
-                >
-                  <i className="ri-user-line text-xl"></i>
-                  <span className="hidden md:inline-block">Login</span>
-                </button>
               )}
               
               <button
@@ -157,11 +162,6 @@ const Navbar = () => {
                         Histórico de Pedidos
                       </Link>
                     )}
-                    {user && user.type === 'admin' && (
-                      <Link href="/admin" className="hover:text-primary transition-colors py-2">
-                        Área Admin
-                      </Link>
-                    )}
                   </>
                 ) : (
                   <>
@@ -173,6 +173,9 @@ const Navbar = () => {
                     </Link>
                     <Link href="/admin/produtos" className="hover:text-primary transition-colors py-2">
                       Produtos
+                    </Link>
+                    <Link href="/admin/pedidos/historico" className="hover:text-primary transition-colors py-2">
+                      Histórico de Pedidos
                     </Link>
                     <Link href="/" className="hover:text-primary transition-colors py-2">
                       Loja
@@ -190,18 +193,8 @@ const Navbar = () => {
         )}
       </nav>
       
-      {/* Login Modal */}
-      <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-        <DialogContent className="sm:max-w-md bg-popover text-popover-foreground">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Login Administrativo</DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Acesse o painel administrativo
-            </DialogDescription>
-          </DialogHeader>
-          <LoginForm onSuccess={() => setLoginOpen(false)} />
-        </DialogContent>
-      </Dialog>
+      {/* Carrinho */}
+      <CartSidebar isOpen={cartOpen} onClose={() => setCartOpen(false)} />
     </>
   );
 };

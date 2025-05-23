@@ -1,16 +1,11 @@
-import { apiRequest } from "@/lib/queryClient";
+import { supabase } from "@/lib/supabase";
+import { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 
 interface User {
-  id: number;
-  name: string;
+  id: string;
   email: string;
   type: 'cliente' | 'admin';
-}
-
-interface AuthSession {
-  user: User;
-  token: string;
 }
 
 interface AuthProviderProps {
@@ -23,6 +18,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<User>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  session: Session | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -37,61 +33,39 @@ export function useAuth() {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   
-  // Função para salvar no localStorage
-  const saveAuthToLocalStorage = (userData: User, token: string) => {
-    const authData: AuthSession = {
-      user: userData,
-      token: token
+  // Converter usuário Supabase para nosso formato de usuário
+  const convertSupabaseUser = (supabaseUser: SupabaseUser | null): User | null => {
+    if (!supabaseUser) return null;
+    
+    return {
+      id: supabaseUser.id,
+      email: supabaseUser.email || "",
+      // Por padrão, consideramos todos usuários autenticados como admin
+      // Em uma implementação mais robusta, você pode verificar claims ou metadados
+      type: 'admin'
     };
-    localStorage.setItem('authSession', JSON.stringify(authData));
-    console.log('Sessão salva no localStorage', authData);
-  };
-  
-  // Função para recuperar do localStorage
-  const loadAuthFromLocalStorage = (): AuthSession | null => {
-    const authData = localStorage.getItem('authSession');
-    if (authData) {
-      try {
-        return JSON.parse(authData);
-      } catch (error) {
-        console.error('Erro ao parsear dados de autenticação', error);
-        localStorage.removeItem('authSession');
-      }
-    }
-    return null;
-  };
-  
-  // Função para remover do localStorage
-  const clearAuthFromLocalStorage = () => {
-    localStorage.removeItem('authSession');
-    console.log('Sessão removida do localStorage');
   };
   
   const checkAuth = async () => {
     try {
-      // Primeiro, tentar usar dados do localStorage
-      const localAuth = loadAuthFromLocalStorage();
+      // Verificar sessão atual
+      const { data, error } = await supabase.auth.getSession();
       
-      if (localAuth && localAuth.user && localAuth.token) {
-        console.log("Dados de autenticação encontrados no localStorage");
-        setUser(localAuth.user);
-        setLoading(false);
+      if (error) {
+        console.error("Erro ao verificar sessão:", error);
         return;
       }
       
-      // Se não tiver no localStorage, tentar buscar da API
-      const response = await fetch("/api/auth/me", {
-        credentials: "include",
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        console.log("Dados do usuário recuperados da API:", data);
-        setUser(data.user);
+      if (data && data.session) {
+        setSession(data.session);
+        const userData = convertSupabaseUser(data.session.user);
+        setUser(userData);
       } else {
-        console.log("Usuário não autenticado");
+        setSession(null);
+        setUser(null);
       }
     } catch (error) {
       console.error("Erro ao verificar autenticação:", error);
@@ -100,38 +74,45 @@ export function AuthProvider({ children }: AuthProviderProps) {
     }
   };
   
+  // Configurar listener de autenticação
   useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log("Estado de autenticação alterado:", _event);
+      setSession(session);
+      setUser(convertSupabaseUser(session?.user || null));
+    });
+
     checkAuth();
+    
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
   
   const login = async (email: string, password: string): Promise<User> => {
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-        credentials: "include",
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
       
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Erro no login:", errorData);
-        throw new Error(errorData.message || "Erro ao fazer login");
+      if (error) {
+        console.error("Erro no login:", error);
+        throw new Error(error.message);
       }
       
-      const data = await response.json();
-      console.log("Login bem-sucedido:", data);
-
-      // Garantir que os dados do usuário estejam no formato correto
-      const userData = data.user || data;
-      const token = data.token || "";
+      if (!data.user || !data.session) {
+        throw new Error("Falha na autenticação");
+      }
       
-      // Salvar no localStorage
-      saveAuthToLocalStorage(userData, token);
-      
+      const userData = convertSupabaseUser(data.user);
       setUser(userData);
+      setSession(data.session);
+      
+      if (!userData) {
+        throw new Error("Falha ao processar dados do usuário");
+      }
+      
       return userData;
     } catch (error) {
       console.error("Erro durante o login:", error);
@@ -140,9 +121,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
   
   const logout = async () => {
-    await apiRequest("POST", "/api/auth/logout", {});
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Erro ao fazer logout:", error);
+    }
+    
     setUser(null);
-    clearAuthFromLocalStorage();
+    setSession(null);
   };
   
   const value = {
@@ -151,6 +136,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     login,
     logout,
     checkAuth,
+    session,
   };
   
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
