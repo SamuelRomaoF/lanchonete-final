@@ -45,7 +45,7 @@ export default async function handler(
       
       return res.status(200).json({ success: true });
     }
-    
+
     // Para outros tipos de eventos, apenas confirmar o recebimento
     return res.status(200).json({ success: true });
   } catch (error) {

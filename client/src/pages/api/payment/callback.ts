@@ -15,7 +15,7 @@ export default async function handler(
   try {
     // Extrair parâmetros de consulta (normalmente o ID do pagamento)
     const { id, status } = req.query;
-    
+  
     console.log('Callback recebido:', { id, status });
     
     if (status === 'success') {

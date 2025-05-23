@@ -243,16 +243,16 @@ class EmailService {
                   </tr>
                   ` : ''}
                 </table>
-              </div>
-              
+            </div>
+            
               <h3 style="color: #8B4513; border-bottom: 2px solid #8B4513; padding-bottom: 8px;">Itens do Pedido</h3>
               ${itemsTable}
               
               <div style="margin-top: 30px; text-align: center;">
-                <a href="http://localhost:3002/admin/pedidos" 
+              <a href="http://localhost:3002/admin/pedidos" 
                   style="display: inline-block; background-color: #8B4513; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                   Gerenciar Pedido
-                </a>
+              </a>
               </div>
             </div>
             

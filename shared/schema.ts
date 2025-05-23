@@ -12,100 +12,27 @@ export type PaymentMethod = "pix" | "cartao" | "dinheiro";
 // Enum para status de pagamento
 export type PaymentStatus = "pending" | "paid" | "cancelled";
 
-// Tipos de entidades
-export interface User {
-  id: number;
-  name: string;
-  email: string;
-  password: string;
-  address?: string;
-  phone?: string;
-  type: UserType;
-  createdAt: Date;
-}
-
-export interface Category {
-  id: string | number;  // Aceita tanto string (formato do Supabase) quanto number
-  name: string;
-  description?: string;
-  imageUrl?: string;
-}
-
-export interface Product {
-  id: string | number;  // Aceita tanto string (formato do Supabase) quanto number
-  name: string;
-  description?: string;
-  price: number;
-  imageUrl?: string;
-  isFeatured: boolean;
-  isPromotion: boolean;
-  oldPrice?: number;
-  categoryId: string | number;  // Aceita tanto string (formato do Supabase) quanto number
-  available: boolean;
-  createdAt?: Date;
-}
-
-// Item de pedido
-export interface OrderItem {
-  id?: number;
-  productId?: number;
-  name: string;
-  quantity: number;
-  price: number;
-  notes?: string;
-}
-
-// Cliente do pedido
-export interface Customer {
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-}
-
-// Detalhes de pagamento
-export interface PaymentDetails {
-  paidAt?: string;
-  transactionId?: string;
-  pixKey?: string;
-  qrCodeData?: string;
-  changeAmount?: number;
-}
-
-// Pedido
-export interface Order {
-  id: number;
-  ticketNumber?: string;
-  items: OrderItem[];
-  customer: Customer;
-  totalAmount: number;
-  status: OrderStatus;
-  paymentMethod: PaymentMethod;
-  paymentStatus: PaymentStatus;
-  paymentDetails?: PaymentDetails;
-  notes?: string;
-  created_at: string;
-  updated_at?: string;
-}
-
 // Tipos de usuário
 export const userSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
-  type: z.enum(['admin', 'customer']),
+  type: z.enum(["admin", "customer"]),
+  address: z.string().optional(),
+  phone: z.string().optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional()
 });
 
 export type User = z.infer<typeof userSchema>;
-export type UserProfile = Omit<User, 'password'>;
+export type UserProfile = Omit<User, "password">;
 
 // Tipos de categoria
 export const categorySchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
+  imageUrl: z.string().optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional()
 });
@@ -125,6 +52,7 @@ export const productSchema = z.object({
   available: z.boolean(),
   isFeatured: z.boolean(),
   isPromotion: z.boolean(),
+  oldPrice: z.number().optional(),
   created_at: z.string().datetime().optional(),
   updated_at: z.string().datetime().optional()
 });
@@ -149,9 +77,10 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
 // Tipos de pagamento
 export const paymentSchema = z.object({
-  method: z.enum(['pix', 'credit_card', 'debit_card', 'cash']),
-  status: z.enum(['pending', 'paid', 'failed', 'refunded']),
+  method: z.enum(["pix", "credit_card", "debit_card", "cash"]),
+  status: z.enum(["pending", "paid", "failed", "refunded"]),
   amount: z.number(),
+  orderId: z.string(),
   transactionId: z.string().optional(),
   paymentDetails: z.record(z.any()).optional()
 });
@@ -164,7 +93,7 @@ export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export const orderSchema = z.object({
   id: z.string(),
   ticketNumber: z.string(),
-  status: z.enum(['recebido', 'em_preparo', 'pronto', 'entregue', 'cancelado']),
+  status: z.enum(["recebido", "em_preparo", "pronto", "entregue", "cancelado"]),
   items: z.array(orderItemSchema),
   totalAmount: z.number(),
   customer: z.object({
@@ -172,8 +101,9 @@ export const orderSchema = z.object({
     email: z.string().email(),
     phone: z.string().optional()
   }),
-  paymentMethod: z.enum(['pix', 'credit_card', 'debit_card', 'cash']),
-  paymentStatus: z.enum(['pending', 'paid', 'failed', 'refunded']),
+  userId: z.string().optional(),
+  paymentMethod: z.enum(["pix", "credit_card", "debit_card", "cash"]),
+  paymentStatus: z.enum(["pending", "paid", "failed", "refunded"]),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime().optional(),
   paymentDetails: z.record(z.any()).optional()
