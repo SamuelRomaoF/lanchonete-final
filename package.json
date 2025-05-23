@@ -5,8 +5,9 @@
   "type": "module",
   "license": "MIT",
   "scripts": {
+    "prebuild": "tsc server/vite.ts --declaration --emitDeclarationOnly --outDir server",
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "npm run prebuild && tsc --noEmit && vite build",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview",
     "netlify:dev": "netlify dev",
