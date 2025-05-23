@@ -1,15 +1,6 @@
-import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { UserProfile } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-
-interface UserProfile {
-  id: number;
-  name: string;
-  email: string;
-  address?: string;
-  phone?: string;
-  type: 'cliente' | 'admin';
-}
 
 interface UseUserHookResult {
   profile: UserProfile | null;
@@ -21,20 +12,16 @@ interface UseUserHookResult {
 export function useUser(): UseUserHookResult {
   const { user } = useAuth();
   
-  const {
-    data: profile,
-    isLoading,
-    error,
-    refetch,
-  } = useQuery<UserProfile>({
-    queryKey: user ? ['/api/users', user.id] : null,
+  const query = useQuery<UserProfile>({
+    queryKey: user ? ['/api/auth/me'] : [],
     enabled: !!user,
+    staleTime: 1000 * 60 * 5, // 5 minutos
   });
   
   return {
-    profile: profile || null,
-    isLoading,
-    error,
-    refetch,
+    profile: query.data || null,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
   };
 }

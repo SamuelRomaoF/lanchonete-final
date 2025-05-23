@@ -1,8 +1,11 @@
 import CartSidebar from "@/components/CartSidebar";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuGroup,
     DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
@@ -10,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { ClipboardList, FolderTree, LayoutDashboard, LogOut, Package, Receipt, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
 
@@ -107,24 +111,78 @@ const Navbar = () => {
               <ThemeToggle />
               
               {/* Exibir apenas para usuários logados */}
-              {user && (
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src="/avatars/01.png" alt={user.name || 'Avatar do usuário'} />
+                        <AvatarFallback>{user.name?.charAt(0) || 'U'}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none">{user.name || 'Usuário'}</p>
+                        <p className="text-xs leading-none text-muted-foreground">
+                          {user.email}
+                        </p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuGroup>
+                      {user.type === 'admin' && (
+                        <>
+                          <DropdownMenuItem onClick={() => navigate('/admin')}>
+                            <LayoutDashboard className="mr-2 h-4 w-4" />
+                            <span>Dashboard</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/products')}>
+                            <Package className="mr-2 h-4 w-4" />
+                            <span>Produtos</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/categories')}>
+                            <FolderTree className="mr-2 h-4 w-4" />
+                            <span>Categorias</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => navigate('/admin/orders')}>
+                            <ClipboardList className="mr-2 h-4 w-4" />
+                            <span>Pedidos</span>
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      )}
+                      <DropdownMenuItem onClick={() => navigate('/orders')}>
+                        <Receipt className="mr-2 h-4 w-4" />
+                        <span>Meus Pedidos</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => navigate('/profile')}>
+                        <User className="mr-2 h-4 w-4" />
+                        <span>Perfil</span>
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout}>
+                      <LogOut className="mr-2 h-4 w-4" />
+                      <span>Sair</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
                 <DropdownMenu>
                   <DropdownMenuTrigger className="flex items-center space-x-1 text-sm">
                     <i className="ri-user-line text-xl"></i>
-                    <span className="hidden md:inline-block">{user.name}</span>
+                    <span className="hidden md:inline-block">Login</span>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="bg-popover text-popover-foreground border-border">
-                    <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+                    <DropdownMenuLabel>Login</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {user.type === 'admin' && (
-                      <DropdownMenuItem asChild>
-                        <Link href="/admin" className="w-full cursor-pointer">
-                          Painel Admin
-                        </Link>
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem onClick={handleLogout}>
-                      Sair
+                    <DropdownMenuItem onClick={() => navigate('/login')}>
+                      Login
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => navigate('/register')}>
+                      Registrar
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

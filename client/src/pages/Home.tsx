@@ -93,7 +93,7 @@ const Home = () => {
               {categories && categories.map((category) => (
                 <CategoryCard 
                   key={category.id} 
-                  id={category.id} 
+                  id={String(category.id)} 
                   name={category.name} 
                 />
               ))}

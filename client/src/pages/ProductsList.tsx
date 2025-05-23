@@ -104,14 +104,13 @@ const ProductsList = () => {
                 filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
-                    id={product.id}
-                    name={product.name}
-                    description={product.description || ""}
-                    price={product.price}
-                    oldPrice={product.oldPrice}
-                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
-                    isFeatured={product.isFeatured}
-                    isPromotion={product.isPromotion}
+                    product={{
+                      ...product,
+                      description: product.description || '',
+                      imageUrl: product.imageUrl || '',
+                      available: true,
+                      categoryId: product.categoryId || ''
+                    }}
                   />
                 ))
               ) : (
@@ -146,14 +145,13 @@ const ProductsList = () => {
                     .map((product) => (
                       <ProductCard
                         key={product.id}
-                        id={product.id}
-                        name={product.name}
-                        description={product.description || ""}
-                        price={product.price}
-                        oldPrice={product.oldPrice}
-                        imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
-                        isFeatured={product.isFeatured}
-                        isPromotion={product.isPromotion}
+                        product={{
+                          ...product,
+                          description: product.description || '',
+                          imageUrl: product.imageUrl || '',
+                          available: true,
+                          categoryId: product.categoryId || ''
+                        }}
                       />
                     ))
                 )}
