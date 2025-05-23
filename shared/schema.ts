@@ -65,9 +65,9 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 
 // Tipos de item do pedido
 export const orderItemSchema = z.object({
-  id: z.number().optional(),
+  id: z.string().optional(),
   orderId: z.string().optional(),
-  productId: z.number().optional(),
+  productId: z.string().optional(),
   name: z.string(),
   price: z.number(),
   quantity: z.number(),
@@ -109,7 +109,7 @@ export const orderSchema = z.object({
   }),
   userId: z.string().optional(),
   notes: z.string().optional(),
-  paymentMethod: z.enum(["pix", "credit_card", "debit_card", "cash"]),
+  paymentMethod: z.enum(["pix", "cartao", "dinheiro"]),
   paymentStatus: z.enum(["pending", "paid", "failed", "refunded"]),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime().optional(),

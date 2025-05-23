@@ -37,6 +37,24 @@ const adminMiddleware = (req: Request, res: Response, next: Function) => {
   next();
 };
 
+// Função auxiliar para converter tipos
+function convertOrder(order: any): any {
+  return {
+    ...order,
+    id: String(order.id || ''),
+    items: Array.isArray(order.items) ? order.items.map((item: any) => ({
+      ...item,
+      id: String(item.id || crypto.randomUUID()),
+      orderId: String(order.id),
+      productId: item.productId ? String(item.productId) : undefined
+    })) : [],
+    totalAmount: Number(order.totalAmount || order.total || 0),
+    total: Number(order.total || order.totalAmount || 0),
+    created_at: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
+    updated_at: order.updated_at ? new Date(order.updated_at).toISOString() : undefined
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rotas de autenticação ====
   app.post('/api/auth/login', async (req, res) => {
@@ -1122,6 +1140,39 @@ export async function registerRoutes(app: Express): Promise<void> {
         message: "Erro ao enviar e-mail",
         error: error instanceof Error ? error.message : String(error)
       });
+    }
+  });
+
+  // Função para criar um novo pedido
+  app.post('/api/orders', async (req, res) => {
+    try {
+      const { orderData, items } = req.body;
+      
+      // Validar dados do pedido
+      const orderResult = insertOrderSchema.safeParse(orderData);
+      
+      if (!orderResult.success) {
+        return res.status(400).json(handleZodError(orderResult.error));
+      }
+      
+      // Verificar se items é um array válido
+      if (!items || !Array.isArray(items) || items.length === 0) {
+        return res.status(400).json({ 
+          message: "Erro de validação",
+          errors: [{ path: "items", message: "Itens do pedido são obrigatórios" }]
+        });
+      }
+      
+      // Criar o pedido com os dados validados
+      const newOrder = await storage.createOrder(orderResult.data, items);
+      
+      return res.status(201).json({
+        message: "Pedido criado com sucesso",
+        order: newOrder
+      });
+    } catch (error) {
+      console.error('Erro ao criar pedido:', error);
+      return res.status(500).json({ message: "Erro ao criar pedido" });
     }
   });
 

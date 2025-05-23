@@ -28,7 +28,8 @@ export async function fetchFromApi<T>(
       throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+    return data as T;
   } catch (error) {
     console.error(`Erro ao chamar API ${endpoint}:`, error);
     throw error;
@@ -282,7 +283,7 @@ export async function getOrders(): Promise<Order[]> {
     const localOrders = getOrdersFromLocalStorage();
     
     // Tentar obter dados da API
-    const response = await fetchFromApi('/queue');
+    const response = await fetchFromApi<{ success?: boolean; orders?: Order[] }>('/queue');
     
     if (!response || !response.orders || !Array.isArray(response.orders)) {
       console.error('Estrutura de resposta inválida da API de fila:', response);
@@ -301,7 +302,7 @@ export async function getOrders(): Promise<Order[]> {
       created_at: order.createdAt, // Duplicar para compatibilidade
       totalAmount: order.total,
       items: order.items.map((item: any) => ({
-        id: item.id || 1,
+        id: item.id || crypto.randomUUID(),
         name: item.name,
         quantity: item.quantity,
         price: item.price,

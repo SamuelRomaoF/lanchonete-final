@@ -129,16 +129,15 @@ const Home = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {availableFeaturedProducts && availableFeaturedProducts.length > 0 ? (
                 availableFeaturedProducts.map((product) => (
-                  <ProductCard 
+                  <ProductCard
                     key={product.id}
-                    id={product.id}
-                    name={product.name}
-                    description={product.description || ""}
-                    price={product.price}
-                    oldPrice={product.oldPrice}
-                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
-                    isFeatured={product.isFeatured}
-                    isPromotion={product.isPromotion}
+                    product={{
+                      ...product,
+                      description: product.description || '',
+                      imageUrl: product.imageUrl || '',
+                      available: true,
+                      categoryId: product.categoryId || ''
+                    }}
                   />
                 ))
               ) : (
@@ -247,16 +246,15 @@ const Home = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {availablePromotionProducts.map((product) => (
-                  <ProductCard 
+                  <ProductCard
                     key={product.id}
-                    id={product.id}
-                    name={product.name}
-                    description={product.description || ""}
-                    price={product.price}
-                    oldPrice={product.oldPrice}
-                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
-                    isFeatured={product.isFeatured}
-                    isPromotion={product.isPromotion}
+                    product={{
+                      ...product,
+                      description: product.description || '',
+                      imageUrl: product.imageUrl || '',
+                      available: true,
+                      categoryId: product.categoryId || ''
+                    }}
                   />
                 ))}
               </div>

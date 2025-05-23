@@ -29,8 +29,13 @@ const ProductCard = ({ product, onAddToCart, showAddToCart = true }: ProductCard
   };
 
   // Adicionar ao carrinho
-  const handleAddToCart = () => {
-    addItem(product);
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onAddToCart) {
+      onAddToCart(product);
+    } else {
+      addItem(product);
+    }
     
     toast({
       title: "Produto adicionado",
@@ -86,13 +91,10 @@ const ProductCard = ({ product, onAddToCart, showAddToCart = true }: ProductCard
             <span className="font-bold text-lg">{formatCurrency(product.price)}</span>
           </div>
           
-          {showAddToCart && onAddToCart && (
+          {showAddToCart && (
             <Button 
               className="bg-primary hover:bg-primary-dark text-white font-medium"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddToCart(product);
-              }}
+              onClick={handleAddToCart}
             >
               Adicionar
             </Button>
