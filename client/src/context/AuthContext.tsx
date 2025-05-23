@@ -1,7 +1,7 @@
-import { supabase } from "@/lib/supabase";
-import { User } from "@shared/schema";
 import { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { User } from "../../shared/schema.js";
+import { supabase } from "../lib/supabase.js";
 
 interface AuthProviderProps {
   children: ReactNode;

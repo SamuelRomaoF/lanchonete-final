@@ -1,6 +1,6 @@
-import LoginForm from "@/components/LoginForm";
-import { useAuth } from "@/context/AuthContext";
 import { Redirect } from "wouter";
+import LoginForm from "../../components/LoginForm.js";
+import { useAuth } from "../../context/AuthContext.js";
 
 const AdminLogin = () => {
   const { user } = useAuth();

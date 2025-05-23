@@ -1,7 +1,7 @@
-import { Category, Product } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "wouter";
+import { Category, Product } from "../../shared/schema.js";
 import ProductCard from "../components/ProductCard.js";
 import { Input } from "../components/ui/input.js";
 import { Skeleton } from "../components/ui/skeleton.js";

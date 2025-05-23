@@ -1,10 +1,10 @@
-import CategoryCard from "@/components/CategoryCard";
-import ProductCard from "@/components/ProductCard";
-import { Button } from "@/components/ui/button";
-import { getCategories, getFeaturedProducts, getPromotionProducts } from "@/lib/api";
-import { Category, Product } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { Category, Product } from "../../shared/schema.js";
+import CategoryCard from "../components/CategoryCard.js";
+import ProductCard from "../components/ProductCard.js";
+import { Button } from "../components/ui/button.js";
+import { getCategories, getFeaturedProducts, getPromotionProducts } from "../lib/api.js";
 
 const Home = () => {
   // Buscar categorias

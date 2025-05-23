@@ -1,10 +1,10 @@
-import CheckoutForm from "@/components/CheckoutForm";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { useCart } from "@/context/CartContext";
-import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import CheckoutForm from "../components/CheckoutForm.js";
+import { Button } from "../components/ui/button.js";
+import { Card } from "../components/ui/card.js";
+import { useCart } from "../context/CartContext.js";
+import { useToast } from "../hooks/use-toast.js";
 
 const Checkout = () => {
   const { items, getTotalPrice, clearCart } = useCart();

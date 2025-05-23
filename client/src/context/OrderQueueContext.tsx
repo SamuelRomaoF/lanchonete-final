@@ -1,5 +1,5 @@
-import { apiRequest } from '@/lib/queryClient';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { apiRequest } from '../lib/queryClient.js';
 
 // Tipos
 export type OrderStatus = 'recebido' | 'em_preparo' | 'pronto' | 'entregue';

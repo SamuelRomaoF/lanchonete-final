@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { Button } from "../../components/ui/button.js";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.js";
+import { Input } from "../../components/ui/input.js";
+import { useAuth } from "../../context/AuthContext.js";
+import { useToast } from "../../hooks/use-toast.js";
+import { apiRequest } from "../../lib/queryClient.js";
 
 const EmailSettings = () => {
   const { user } = useAuth();

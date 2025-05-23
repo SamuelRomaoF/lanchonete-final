@@ -3,10 +3,10 @@ import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency } from "@/lib/utils";
-import { Product } from "@shared/schema";
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
+import { Product } from "../../shared/schema.js";
 
 interface ProductCardProps {
   product: Product;
