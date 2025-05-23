@@ -31,9 +31,10 @@
     },
 
     /* Type Declarations */
-    "typeRoots": ["./node_modules/@types", "./types"]
+    "typeRoots": ["./types", "./node_modules/@types"]
   },
   "include": [
+    "types/**/*.d.ts",
     "client/src/**/*.ts",
     "client/src/**/*.tsx",
     "shared/**/*.ts",
