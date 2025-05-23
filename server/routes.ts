@@ -237,7 +237,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
       
-      const isPasswordValid = await bcrypt.compare(password, user.password);
+      const isPasswordValid = await bcrypt.compare(password, String(user.password));
       
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Credenciais inválidas" });
@@ -434,8 +434,8 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/products/:id', async (req, res) => {
     try {
-      const id = req.params.id;
-      if (!id || typeof id !== 'string' || id.trim() === '') {
+      const id = String(req.params.id);
+      if (!id || id.trim() === '') {
         return res.status(400).json({ message: "ID inválido" });
       }
       const product = await storage.getProduct(id);
@@ -605,28 +605,20 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rotas de pagamentos ====
   app.post('/api/payments', authMiddleware, async (req, res) => {
     try {
-      const result = insertOrderSchema.safeParse(req.body);
-      
-      if (!result.success) {
-        return res.status(400).json(handleZodError(result.error));
+      const { orderId } = req.body;
+      if (!orderId || typeof orderId !== 'string') {
+        return res.status(400).json({ message: "orderId é obrigatório" });
       }
-      
-      const { orderId } = result.data;
-      
       // Verificar se o pedido existe
       const order = await storage.getOrder(orderId);
-      
       if (!order) {
         return res.status(404).json({ message: "Pedido não encontrado" });
       }
-      
       // Verificar se já existe pagamento para este pedido
       const existingPayment = await storage.getPaymentByOrder(orderId);
-      
       if (existingPayment) {
         return res.status(400).json({ message: "Já existe um pagamento para este pedido" });
       }
-      
       // Criar pagamento
       const payment = {
         method: 'pix',
@@ -637,13 +629,11 @@ export async function registerRoutes(app: Express): Promise<void> {
         createdAt: new Date().toISOString(),
         transactionId: `${Date.now()}-${Math.random().toString(36).slice(2)}`
       };
-
       // Atualizar status do pedido
       await updateOrder(orderId, {
         paymentStatus: payment.status,
         paymentDetails: payment.paymentDetails
       });
-
       return res.status(201).json({
         message: "Pagamento registrado com sucesso",
         payment: payment
