@@ -259,11 +259,12 @@ export class MemStorage implements IStorage {
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
+    const id = this.currentUserId;
+    this.currentUserId = (parseInt(this.currentUserId) + 1).toString();
     const now = new Date();
     const user: User = { 
       ...insertUser, 
-      id: id.toString(),
+      id: id,
       created_at: now.toISOString(),
       createdAt: now.toISOString()
     };
@@ -442,9 +443,11 @@ export class MemStorage implements IStorage {
   }> {
     const orders = Array.from(this.orders.values());
     
+    const totalSales = orders.reduce((sum, order) => sum + order.totalAmount, 0);
+    
     return {
       totalOrders: orders.length,
-      totalSales: orders.reduce((sum, order) => sum + order.total, 0),
+      totalSales: totalSales,
       pendingOrders: orders.filter(order => 
         ['pendente', 'confirmado', 'preparo'].includes(order.status)
       ).length,

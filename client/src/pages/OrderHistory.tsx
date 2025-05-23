@@ -1,4 +1,4 @@
-import { ProductCard } from "@/components/ProductCard";
+import ProductCard from "@/components/ProductCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,17 +74,15 @@ const OrderHistory = () => {
     order.items.forEach(item => {
       // Convertemos para o formato esperado pelo carrinho
       const product = {
-        id: String(item.id), // Convertendo para string
+        id: String(item.id),
         name: item.name,
+        description: item.notes || "",
         price: item.price,
-        // Adicionando propriedades obrigatórias para o tipo Product
+        categoryId: "1",
+        available: true,
         isFeatured: false,
         isPromotion: false,
-        categoryId: "1", // Valor padrão
-        available: true,
-        // Propriedades opcionais
-        description: item.notes || "",
-        imageUrl: item.imageUrl || ""
+        imageUrl: ""
       };
       
       addItem(product, item.quantity);
@@ -144,9 +142,15 @@ const OrderHistory = () => {
                     <ProductCard
                       key={item.id}
                       product={{
-                        ...item,
+                        id: String(item.id),
+                        name: item.name,
                         description: item.notes || "",
-                        imageUrl: item.imageUrl || ""
+                        price: item.price,
+                        categoryId: "1",
+                        available: true,
+                        isFeatured: false,
+                        isPromotion: false,
+                        imageUrl: ""
                       }}
                     />
                   ))}
