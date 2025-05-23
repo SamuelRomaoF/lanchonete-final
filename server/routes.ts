@@ -702,11 +702,11 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       // Se o pagamento for aprovado, atualizar status do pedido para em_preparo
       if (status === 'paid') {
-        await storage.updateOrderStatus(updatedPayment.orderId, 'em_preparo');
+        await storage.updateOrderStatus(updatedPayment.id, 'em_preparo');
       }
       // Se o pagamento for recusado, atualizar status do pedido para cancelado
       if (status === 'failed') {
-        await storage.updateOrderStatus(updatedPayment.orderId, 'cancelado');
+        await storage.updateOrderStatus(updatedPayment.id, 'cancelado');
       }
       return res.status(200).json({
         message: "Status do pagamento atualizado com sucesso",
@@ -1238,8 +1238,8 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/admin/storage-status', adminMiddleware, (req, res) => {
     try {
       // Forçar carregamento dos dados para garantir que os arquivos são criados
-      const categories = menuStorage.loadCategories();
-      const products = menuStorage.loadProducts();
+      const categories = await menuStorage.loadCategories();
+      const products = await menuStorage.loadProducts();
       
       // Verificar os arquivos de dados
       const fs = require('fs');
