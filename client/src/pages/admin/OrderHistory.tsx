@@ -97,30 +97,6 @@ const OrderHistory = () => {
     setIsDetailsOpen(true);
   };
   
-  const handleUpdateStatus = async () => {
-    if (selectedOrder && newStatus) {
-      try {
-        await updateOrderStatus(selectedOrder.id.toString(), newStatus);
-        queryClient.invalidateQueries({ queryKey: ['orders'] });
-        
-        toast({
-          title: "Status atualizado",
-          description: `Pedido ${selectedOrder.ticketNumber} atualizado para ${statusConfig[newStatus]?.text || newStatus}`,
-        });
-        
-        setIsDetailsOpen(false);
-      } catch (error) {
-        console.error("Erro ao atualizar status:", error);
-        
-        toast({
-          title: "Erro na atualização",
-          description: "Não foi possível atualizar o status do pedido",
-          variant: "destructive",
-        });
-      }
-    }
-  };
-  
   // Formatação da data completa
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -366,14 +342,6 @@ const OrderHistory = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      {newStatus !== selectedOrder.status && (
-                        <Button 
-                          className="w-full mt-2" 
-                          onClick={handleUpdateStatus}
-                        >
-                          Atualizar Status
-                        </Button>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
