@@ -149,7 +149,9 @@ export class MemStorage implements IStorage {
       name: 'Administrador',
       email: 'adm@lanchonete.com',
       password: await bcrypt.hash('admin123', 10),
-      type: 'admin'
+      type: 'admin',
+      address: '',
+      phone: ''
     });
     
     // Criar usuário cliente padrão

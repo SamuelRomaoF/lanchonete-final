@@ -435,8 +435,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/products/:id', async (req, res) => {
     try {
       const id = req.params.id;
-      if (!id || typeof id !== 'string' || id.trim() === '') return res.status(400).json({ message: "ID inválido" });
-      // @ts-expect-error id checado acima
+      if (!id || typeof id !== 'string' || id.trim() === '') {
+        return res.status(400).json({ message: "ID inválido" });
+      }
       const product = await storage.getProduct(id);
       if (!product) return res.status(404).json({ message: "Produto não encontrado" });
       return res.status(200).json(product);
@@ -704,11 +705,9 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!updatedPayment.orderId) {
         return res.status(500).json({ message: "Pagamento inconsistente: não possui orderId." });
       }
-      // @ts-expect-error orderId garantido acima
       if (status === 'paid') {
         await storage.updateOrderStatus(updatedPayment.orderId, 'em_preparo');
       }
-      // @ts-expect-error orderId garantido acima
       if (status === 'failed') {
         await storage.updateOrderStatus(updatedPayment.orderId, 'cancelado');
       }
