@@ -36,7 +36,7 @@ const productFormSchema = z.object({
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero"),
   oldPrice: z.coerce.number().optional(),
   imageUrl: z.string().optional(),
-  categoryId: z.union([z.string(), z.coerce.number()], {
+  categoryId: z.string({
     required_error: "Categoria é obrigatória",
   }),
   isFeatured: z.boolean().default(false),
@@ -98,7 +98,7 @@ const ProductManagement = () => {
       price: 0,
       oldPrice: undefined,
       imageUrl: "",
-      categoryId: undefined,
+      categoryId: "",
       isFeatured: false,
       isPromotion: false,
       available: true,
@@ -114,7 +114,7 @@ const ProductManagement = () => {
         price: currentProduct.price,
         oldPrice: currentProduct.oldPrice || undefined,
         imageUrl: currentProduct.imageUrl || "",
-        categoryId: currentProduct.categoryId || undefined,
+        categoryId: currentProduct.categoryId || "",
         isFeatured: currentProduct.isFeatured || false,
         isPromotion: currentProduct.isPromotion || false,
         available: currentProduct.available !== false,
@@ -188,7 +188,7 @@ const ProductManagement = () => {
       
       return createProduct({
         ...data,
-        categoryId: String(data.categoryId),
+        categoryId: data.categoryId,
         description: data.description || ''
       });
     },
@@ -215,7 +215,7 @@ const ProductManagement = () => {
   
   // Mutation para atualizar produto
   const updateProductMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: number | string; data: ProductFormValues }) => {
+    mutationFn: async ({ id, data }: { id: string; data: ProductFormValues }) => {
       // Se tiver uma imagem selecionada, fazer upload
       if (selectedImage) {
         // Se já existia uma imagem, remover do storage
@@ -231,9 +231,9 @@ const ProductManagement = () => {
         data.imageUrl = imageUrl;
       }
       
-      return updateProduct(id.toString(), {
+      return updateProduct(id, {
         ...data,
-        categoryId: String(data.categoryId),
+        categoryId: data.categoryId,
         description: data.description || ''
       });
     },
@@ -295,8 +295,8 @@ const ProductManagement = () => {
   
   // Mutation para alternar disponibilidade do produto
   const toggleAvailabilityMutation = useMutation({
-    mutationFn: ({ id, available }: { id: number | string; available: boolean }) => {
-      return updateProduct(id.toString(), { available });
+    mutationFn: ({ id, available }: { id: string; available: boolean }) => {
+      return updateProduct(id, { available });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -328,7 +328,7 @@ const ProductManagement = () => {
   
   const handleEditProduct = (data: ProductFormValues) => {
     if (currentProduct) {
-      updateProductMutation.mutate({ id: currentProduct.id, data });
+      updateProductMutation.mutate({ id: currentProduct.id.toString(), data });
     }
   };
   
@@ -341,7 +341,7 @@ const ProductManagement = () => {
   // Função para alternar disponibilidade
   const handleToggleAvailability = (product: Product) => {
     toggleAvailabilityMutation.mutate({
-      id: product.id,
+      id: product.id.toString(),
       available: !product.available
     });
   };
@@ -354,7 +354,7 @@ const ProductManagement = () => {
       price: 0,
       oldPrice: undefined,
       imageUrl: "",
-      categoryId: undefined,
+      categoryId: "",
       isFeatured: false,
       isPromotion: false,
       available: true,

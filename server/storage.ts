@@ -16,10 +16,10 @@ import * as bcrypt from 'bcrypt';
 // Interface de armazenamento
 export interface IStorage {
   // Usuários
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  updateUser(id: number, user: Partial<InsertUser>): Promise<User | undefined>;
+  updateUser(id: string, user: Partial<InsertUser>): Promise<User | undefined>;
   
   // Categorias
   getCategories(): Promise<Category[]>;
@@ -61,14 +61,38 @@ export interface IStorage {
   }>;
 }
 
+// Função para converter tipos de dados
+function convertOrder(order: any): any {
+  return {
+    ...order,
+    id: String(order.id || ''),
+    productId: order.productId ? String(order.productId) : undefined,
+    orderId: order.orderId ? String(order.orderId) : undefined,
+    created_at: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
+    updated_at: order.updated_at ? new Date(order.updated_at).toISOString() : undefined,
+    createdAt: order.createdAt ? new Date(order.createdAt).toISOString() : undefined,
+    updatedAt: order.updatedAt ? new Date(order.updatedAt).toISOString() : undefined,
+    total: Number(order.total || order.totalAmount || 0),
+    totalAmount: Number(order.totalAmount || order.total || 0),
+    items: Array.isArray(order.items) ? order.items.map((item: any) => ({
+      ...item,
+      id: String(item.id || crypto.randomUUID()),
+      orderId: String(order.id),
+      productId: item.productId ? String(item.productId) : undefined,
+      price: Number(item.price || 0),
+      quantity: Number(item.quantity || 1)
+    })) : []
+  };
+}
+
 // Implementação em memória
 export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private categories: Map<number, Category>;
-  private products: Map<number, Product>;
-  private orders: Map<number, Order>;
-  private orderItems: Map<number, OrderItem>;
-  private payments: Map<number, Payment>;
+  private users: Map<string, User>;
+  private categories: Map<string, Category>;
+  private products: Map<string, Product>;
+  private orders: Map<string, Order>;
+  private orderItems: Map<string, OrderItem>;
+  private payments: Map<string, Payment>;
   
   private currentUserId: number;
   private currentCategoryId: number;
@@ -199,7 +223,7 @@ export class MemStorage implements IStorage {
   }
   
   // Implementação de Usuários
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     return this.users.get(id);
   }
 
@@ -215,12 +239,17 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.currentUserId++;
     const now = new Date();
-    const user: User = { ...insertUser, id, createdAt: now };
-    this.users.set(id, user);
+    const user: User = { 
+      ...insertUser, 
+      id: id.toString(),
+      created_at: now.toISOString(),
+      createdAt: now.toISOString()
+    };
+    this.users.set(user.id, user);
     return user;
   }
 
-  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined> {
+  async updateUser(id: string, userData: Partial<InsertUser>): Promise<User | undefined> {
     const user = this.users.get(id);
     if (!user) return undefined;
     
@@ -235,27 +264,27 @@ export class MemStorage implements IStorage {
   }
 
   async getCategory(id: number): Promise<Category | undefined> {
-    return this.categories.get(id);
+    return this.categories.get(id.toString());
   }
 
   async createCategory(insertCategory: InsertCategory): Promise<Category> {
     const id = this.currentCategoryId++;
-    const category: Category = { ...insertCategory, id };
+    const category: Category = { ...insertCategory, id: id.toString() };
     this.categories.set(id, category);
     return category;
   }
 
   async updateCategory(id: number, categoryData: Partial<InsertCategory>): Promise<Category | undefined> {
-    const category = this.categories.get(id);
+    const category = this.categories.get(id.toString());
     if (!category) return undefined;
     
     const updatedCategory: Category = { ...category, ...categoryData };
-    this.categories.set(id, updatedCategory);
+    this.categories.set(id.toString(), updatedCategory);
     return updatedCategory;
   }
 
   async deleteCategory(id: number): Promise<boolean> {
-    return this.categories.delete(id);
+    return this.categories.delete(id.toString());
   }
   
   // Implementação de Produtos
@@ -265,7 +294,7 @@ export class MemStorage implements IStorage {
 
   async getProductsByCategory(categoryId: number): Promise<Product[]> {
     return Array.from(this.products.values()).filter(
-      product => product.categoryId === categoryId
+      product => product.categoryId === categoryId.toString()
     );
   }
 
@@ -282,19 +311,19 @@ export class MemStorage implements IStorage {
   }
 
   async getProduct(id: number): Promise<Product | undefined> {
-    return this.products.get(id);
+    return this.products.get(id.toString());
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
     const id = this.currentProductId++;
     const now = new Date();
-    const product: Product = { ...insertProduct, id, createdAt: now };
+    const product: Product = { ...insertProduct, id: id.toString(), createdAt: now.toISOString() };
     this.products.set(id, product);
     return product;
   }
 
   async updateProduct(id: number, productData: Partial<InsertProduct>): Promise<Product | undefined> {
-    const product = this.products.get(id);
+    const product = this.products.get(id.toString());
     if (!product) return undefined;
     
     const updatedProduct: Product = { ...product, ...productData };

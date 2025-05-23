@@ -79,7 +79,11 @@ export async function getProducts(): Promise<Product[]> {
     throw error;
   }
 
-  return data || [];
+  return data?.map(product => ({
+    ...product,
+    id: product.id.toString(),
+    categoryId: product.categoryId.toString()
+  })) || [];
 }
 
 export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
@@ -94,7 +98,11 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
     throw error;
   }
 
-  return data || [];
+  return data?.map(product => ({
+    ...product,
+    id: product.id.toString(),
+    categoryId: product.categoryId.toString()
+  })) || [];
 }
 
 export async function getFeaturedProducts(): Promise<Product[]> {
@@ -109,7 +117,11 @@ export async function getFeaturedProducts(): Promise<Product[]> {
     throw error;
   }
 
-  return data || [];
+  return data?.map(product => ({
+    ...product,
+    id: product.id.toString(),
+    categoryId: product.categoryId.toString()
+  })) || [];
 }
 
 export async function getPromotionProducts(): Promise<Product[]> {
@@ -124,7 +136,11 @@ export async function getPromotionProducts(): Promise<Product[]> {
     throw error;
   }
 
-  return data || [];
+  return data?.map(product => ({
+    ...product,
+    id: product.id.toString(),
+    categoryId: product.categoryId.toString()
+  })) || [];
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
@@ -139,7 +155,11 @@ export async function getProductById(id: string): Promise<Product | null> {
     throw error;
   }
 
-  return data;
+  return data ? {
+    ...data,
+    id: data.id.toString(),
+    categoryId: data.categoryId.toString()
+  } : null;
 }
 
 export async function createProduct(product: Omit<Product, 'id'>): Promise<Product> {
@@ -157,7 +177,11 @@ export async function createProduct(product: Omit<Product, 'id'>): Promise<Produ
   }
 
   console.log('Produto criado com sucesso:', data);
-  return data;
+  return {
+    ...data,
+    id: data.id.toString(),
+    categoryId: data.categoryId.toString()
+  };
 }
 
 export async function updateProduct(id: string, product: Partial<Product>): Promise<Product> {
@@ -176,7 +200,11 @@ export async function updateProduct(id: string, product: Partial<Product>): Prom
   }
 
   console.log('Produto atualizado com sucesso:', data);
-  return data;
+  return {
+    ...data,
+    id: data.id.toString(),
+    categoryId: data.categoryId.toString()
+  };
 }
 
 export async function deleteProduct(id: string): Promise<void> {

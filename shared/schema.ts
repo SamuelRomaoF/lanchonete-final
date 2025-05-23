@@ -22,12 +22,14 @@ export const userSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional()
+  updated_at: z.string().datetime().optional(),
+  createdAt: z.string().datetime().optional(), // Alias para created_at
+  updatedAt: z.string().datetime().optional() // Alias para updated_at
 });
 
 export type User = z.infer<typeof userSchema>;
 export type UserProfile = Omit<User, "password">;
-export type InsertUser = Omit<User, "id" | "created_at" | "updated_at">;
+export type InsertUser = Omit<User, "id" | "created_at" | "updated_at" | "createdAt" | "updatedAt">;
 
 // Tipos de categoria
 export const categorySchema = z.object({
@@ -36,7 +38,9 @@ export const categorySchema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().optional(),
   created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional()
+  updated_at: z.string().datetime().optional(),
+  createdAt: z.string().datetime().optional(), // Alias para created_at
+  updatedAt: z.string().datetime().optional() // Alias para updated_at
 });
 
 export type Category = z.infer<typeof categorySchema>;
@@ -56,7 +60,9 @@ export const productSchema = z.object({
   isPromotion: z.boolean(),
   oldPrice: z.number().optional(),
   created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional()
+  updated_at: z.string().datetime().optional(),
+  createdAt: z.string().datetime().optional(), // Alias para created_at
+  updatedAt: z.string().datetime().optional() // Alias para updated_at
 });
 
 export type Product = z.infer<typeof productSchema>;
@@ -81,7 +87,7 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 // Tipos de pagamento
 export const paymentSchema = z.object({
   id: z.string().optional(),
-  method: z.enum(["pix", "credit_card", "debit_card", "cash"]),
+  method: z.enum(["pix", "cartao", "dinheiro"]),
   status: z.enum(["pending", "paid", "failed", "refunded"]),
   amount: z.number(),
   orderId: z.string(),
@@ -100,7 +106,7 @@ export const orderSchema = z.object({
   status: z.enum(["recebido", "em_preparo", "pronto", "entregue", "cancelado"]),
   items: z.array(orderItemSchema),
   totalAmount: z.number(),
-  total: z.number().optional(), // Alias para totalAmount para compatibilidade
+  total: z.number().optional(), // Alias para totalAmount
   customer: z.object({
     name: z.string(),
     email: z.string().email(),
@@ -113,8 +119,8 @@ export const orderSchema = z.object({
   paymentStatus: z.enum(["pending", "paid", "failed", "refunded"]),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime().optional(),
-  createdAt: z.string().datetime().optional(), // Alias para created_at para compatibilidade
-  updatedAt: z.string().datetime().optional(), // Alias para updated_at para compatibilidade
+  createdAt: z.string().datetime().optional(), // Alias para created_at
+  updatedAt: z.string().datetime().optional(), // Alias para updated_at
   paymentDetails: z.record(z.any()).optional()
 });
 
