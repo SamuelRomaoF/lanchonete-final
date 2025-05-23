@@ -96,7 +96,8 @@ const startServer = async (initialPort: number, maxAttempts: number = 10) => {
           reject(error);
         } else {
           // Para outros erros, apenas rejeite
-          reject(error);
+          log(error instanceof Error ? error.message : String(error));
+          throw error;
         }
       });
     });
@@ -115,4 +116,11 @@ const startServer = async (initialPort: number, maxAttempts: number = 10) => {
         attempts++;
       } else {
         // Qualquer outro erro, logue e pare de tentar
-        log(`
+        log(error instanceof Error ? error.message : String(error));
+        throw error;
+      }
+    }
+  }
+};
+
+startServer(8080);
