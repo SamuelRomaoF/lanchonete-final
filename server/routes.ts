@@ -435,7 +435,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/products/:id', async (req, res) => {
     try {
       const id = req.params.id;
-      if (!id) return res.status(400).json({ message: "ID inválido" });
+      if (!id || typeof id !== 'string' || id.trim() === '') return res.status(400).json({ message: "ID inválido" });
       const product = await storage.getProduct(id);
       if (!product) return res.status(404).json({ message: "Produto não encontrado" });
       return res.status(200).json(product);
@@ -701,12 +701,18 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(404).json({ message: "Pagamento não encontrado" });
       }
       // Se o pagamento for aprovado, atualizar status do pedido para em_preparo
-      if (status === 'paid') {
-        await storage.updateOrderStatus(updatedPayment.id, 'em_preparo');
+      let orderId = updatedPayment.orderId;
+      if (!orderId) {
+        // fallback: buscar o pagamento pelo id e pegar o orderId
+        const payment = await storage.getPayment(id);
+        orderId = payment?.orderId;
+      }
+      if (status === 'paid' && typeof orderId === 'string' && orderId.trim() !== '') {
+        await storage.updateOrderStatus(orderId, 'em_preparo');
       }
       // Se o pagamento for recusado, atualizar status do pedido para cancelado
-      if (status === 'failed') {
-        await storage.updateOrderStatus(updatedPayment.id, 'cancelado');
+      if (status === 'failed' && typeof orderId === 'string' && orderId.trim() !== '') {
+        await storage.updateOrderStatus(orderId, 'cancelado');
       }
       return res.status(200).json({
         message: "Status do pagamento atualizado com sucesso",
@@ -1235,7 +1241,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   // Rota para verificar o sistema de armazenamento JSON
-  app.get('/api/admin/storage-status', adminMiddleware, (req, res) => {
+  app.get('/api/admin/storage-status', adminMiddleware, async (req, res) => {
     try {
       // Forçar carregamento dos dados para garantir que os arquivos são criados
       const categories = await menuStorage.loadCategories();
