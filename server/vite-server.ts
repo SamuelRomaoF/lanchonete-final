@@ -1,13 +1,14 @@
-import express, { type Express } from "express";
+import express = require('express');
+type Express = import('express').Express;
 import * as fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
 import * as path from "path";
 import { fileURLToPath } from 'url';
-import * as vite from "vite";
+import { createLogger as viteCreateLogger, createServer as viteCreateServer } from "vite";
 import viteConfig from "../vite.config";
 
-const viteLogger = vite.createLogger();
+const viteLogger = viteCreateLogger();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,10 +28,10 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: [".localhost", ".netlify.app"],
   };
 
-  const viteServer = await vite.createServer({
+  const viteServer = await viteCreateServer({
     ...viteConfig,
     configFile: false,
     customLogger: {
