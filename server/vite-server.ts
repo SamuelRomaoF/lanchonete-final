@@ -3,7 +3,7 @@ type Express = import('express').Express;
 import * as fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
-import path from "path";
+import * as path from "path";
 import { fileURLToPath } from 'url';
 import { createLogger as viteCreateLogger, createServer as viteCreateServer } from "vite";
 import viteConfig from "../vite.config";
