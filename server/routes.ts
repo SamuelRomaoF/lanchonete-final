@@ -432,18 +432,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/products/:id', async (req, res) => {
     try {
       const id = req.params.id;
-      
       if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
-      
       const products = await menuStorage.loadProducts();
       const product = products.find(p => p.id === id);
-      
       if (!product) {
         return res.status(404).json({ message: "Produto não encontrado" });
       }
-      
       return res.status(200).json(product);
     } catch (error) {
       console.error('Erro ao buscar produto:', error);
@@ -640,14 +636,25 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       
       // Criar pagamento
-      const newPayment = await storage.createPayment(result.data);
-      
-      // Atualizar status do pedido para confirmado
-      await storage.updateOrderStatus(orderId, 'confirmado');
-      
+      const payment = {
+        method: 'pix',
+        status: 'paid' as PaymentStatus,
+        paymentDetails: {},
+        amount: order.totalAmount,
+        orderId: order.id,
+        createdAt: new Date().toISOString(),
+        transactionId: `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      };
+
+      // Atualizar status do pedido
+      await updateOrder(orderId, {
+        paymentStatus: payment.status,
+        paymentDetails: payment.paymentDetails
+      });
+
       return res.status(201).json({
         message: "Pagamento registrado com sucesso",
-        payment: newPayment
+        payment: payment
       });
     } catch (error) {
       console.error('Erro ao registrar pagamento:', error);
@@ -725,7 +732,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/admin/dashboard', adminMiddleware, async (req, res) => {
     try {
       const categories = await storage.getCategories();
+      console.log(categories.length);
       const products = await storage.getProducts();
+      console.log(products.length);
       const orders = await storage.getOrders();
       const stats = {
         totalCategories: categories.length,
