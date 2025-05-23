@@ -5,7 +5,7 @@ import path from 'path';
 export type OrderStatus = 'recebido' | 'em_preparo' | 'pronto' | 'entregue';
 
 export interface OrderItem {
-  id: number;
+  id: string;
   name: string;
   quantity: number;
   price: number;

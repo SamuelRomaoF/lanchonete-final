@@ -17,7 +17,7 @@ export interface OrderTicket {
 }
 
 export interface OrderItem {
-  id: number;
+  id: string;
   name: string;
   quantity: number;
   price: number;

@@ -1,5 +1,6 @@
-import { insertOrderSchema } from "@shared/schema";
+import { ApiResponse, insertOrderSchema, Order, OrderItem, OrderStatus, Payment, PaymentMethod, PaymentStatus, Product } from "@shared/schema";
 import * as bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
 import emailService from './email-service';
@@ -57,6 +58,165 @@ function convertOrder(order: any): any {
     createdAt: order.createdAt ? new Date(order.createdAt).toISOString() : undefined,
     updatedAt: order.updatedAt ? new Date(order.updatedAt).toISOString() : undefined
   };
+}
+
+// Atualizar funções que lidam com IDs
+async function getProductById(id: string): Promise<Product | null> {
+  try {
+    if (!id) return null;
+    const product = await storage.getProduct(Number(id));
+    return product ? {
+      ...product,
+      id: String(product.id),
+      categoryId: String(product.categoryId)
+    } : null;
+  } catch (error) {
+    console.error(`Erro ao buscar produto ${id}:`, error);
+    throw error;
+  }
+}
+
+// Atualizar função de criação de pedido
+async function createOrder(orderData: Partial<Order>): Promise<Order> {
+  try {
+    const now = new Date().toISOString();
+    const totalAmount = Number(orderData.totalAmount || 0);
+    
+    const order: Order = {
+      id: crypto.randomUUID(),
+      ticketNumber: `T${Date.now().toString().slice(-6)}`,
+      status: (orderData.status || 'recebido') as OrderStatus,
+      items: (orderData.items || []).map((item: Partial<OrderItem>) => ({
+        id: crypto.randomUUID(),
+        name: item.name || '',
+        price: Number(item.price || 0),
+        quantity: Number(item.quantity || 1),
+        notes: item.notes || ''
+      })),
+      totalAmount,
+      customer: {
+        name: orderData.customer?.name || 'Cliente',
+        email: orderData.customer?.email || 'cliente@example.com',
+        phone: orderData.customer?.phone || '',
+        address: orderData.customer?.address || ''
+      },
+      paymentMethod: (orderData.paymentMethod || 'pix') as PaymentMethod,
+      paymentStatus: (orderData.paymentStatus || 'pending') as PaymentStatus,
+      created_at: now,
+      updated_at: undefined,
+      createdAt: undefined,
+      updatedAt: undefined,
+      notes: orderData.notes || '',
+      userId: orderData.userId || '',
+      paymentDetails: orderData.paymentDetails || {}
+    };
+
+    await storage.saveOrder(order);
+    return order;
+  } catch (error) {
+    console.error('Erro ao criar pedido:', error);
+    throw error;
+  }
+}
+
+// Atualizar função de atualização de pedido
+async function updateOrder(id: string, orderData: Partial<Order>): Promise<Order> {
+  try {
+    const existingOrder = await storage.getOrder(id);
+    if (!existingOrder) {
+      throw new Error(`Pedido ${id} não encontrado`);
+    }
+
+    const now = new Date().toISOString();
+
+    const updatedOrder: Order = {
+      ...existingOrder,
+      ...orderData,
+      id: id,
+      items: orderData.items?.map((item: Partial<OrderItem>) => ({
+        id: item.id || crypto.randomUUID(),
+        name: item.name || '',
+        price: Number(item.price || 0),
+        quantity: Number(item.quantity || 1),
+        notes: item.notes || ''
+      })) || existingOrder.items,
+      customer: {
+        ...existingOrder.customer,
+        ...orderData.customer,
+        phone: orderData.customer?.phone || existingOrder.customer.phone || '',
+        address: orderData.customer?.address || existingOrder.customer.address || ''
+      },
+      status: (orderData.status || existingOrder.status) as OrderStatus,
+      paymentMethod: (orderData.paymentMethod || existingOrder.paymentMethod) as PaymentMethod,
+      paymentStatus: (orderData.paymentStatus || existingOrder.paymentStatus) as PaymentStatus,
+      updated_at: now,
+      totalAmount: Number(orderData.totalAmount || existingOrder.totalAmount),
+      notes: orderData.notes || existingOrder.notes || '',
+      userId: orderData.userId || existingOrder.userId || '',
+      paymentDetails: orderData.paymentDetails || existingOrder.paymentDetails || {}
+    };
+
+    await storage.saveOrder(updatedOrder);
+    return updatedOrder;
+  } catch (error) {
+    console.error(`Erro ao atualizar pedido ${id}:`, error);
+    throw error;
+  }
+}
+
+// Atualizar função de processamento de pagamento
+async function processPayment(orderId: string, paymentData: any): Promise<Payment> {
+  try {
+    const order = await storage.getOrder(orderId);
+    if (!order) {
+      throw new Error(`Pedido ${orderId} não encontrado`);
+    }
+
+    // Simular processamento de pagamento
+    const payment: Payment = {
+      status: 'paid',
+      method: order.paymentMethod,
+      amount: order.totalAmount,
+      orderId: order.id,
+      transactionId: crypto.randomUUID(),
+      paymentDetails: paymentData || {}
+    };
+
+    // Atualizar status do pedido
+    await updateOrder(orderId, {
+      paymentStatus: payment.status,
+      paymentDetails: payment.paymentDetails
+    });
+
+    return payment;
+  } catch (error) {
+    console.error(`Erro ao processar pagamento do pedido ${orderId}:`, error);
+    throw error;
+  }
+}
+
+// Atualizar função de listagem de produtos
+async function listProducts(): Promise<Product[]> {
+  const products = await storage.listProducts();
+  return products;
+}
+
+// Atualizar função de listagem de produtos por categoria
+async function listProductsByCategory(categoryId: string): Promise<Product[]> {
+  const products = await storage.getProductsByCategory(categoryId);
+  return products;
+}
+
+// Atualizar função de listagem de produtos em destaque
+async function listFeaturedProducts(): Promise<Product[]> {
+  const products = await storage.getFeaturedProducts();
+  return products;
+}
+
+// Atualizar função de listagem de produtos em promoção
+async function listPromotionProducts(): Promise<Product[]> {
+  const products = await storage.getPromotionProducts();
+  return products;
 }
 
 export async function registerRoutes(app: Express): Promise<void> {
@@ -197,42 +357,73 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rotas de produtos ====
   app.get('/api/products', async (req, res) => {
     try {
-      const products = await menuStorage.loadProducts();
-      res.json(products);
+      const products = await listProducts();
+      const response: ApiResponse = {
+        success: true,
+        data: products
+      };
+      res.json(response);
     } catch (error) {
       console.error('Erro ao listar produtos:', error);
-      res.status(500).json({ error: 'Erro ao listar produtos' });
+      const response: ApiResponse = {
+        success: false,
+        error: 'Erro ao listar produtos'
+      };
+      res.status(500).json(response);
     }
   });
   
   app.get('/api/products/category/:id', async (req, res) => {
     try {
-      const categoryId = req.params.id;
-      const products = await menuStorage.getProductsByCategory(categoryId);
-      res.json(products);
+      const products = await listProductsByCategory(req.params.id);
+      const response: ApiResponse = {
+        success: true,
+        data: products
+      };
+      res.json(response);
     } catch (error) {
       console.error('Erro ao listar produtos por categoria:', error);
-      res.status(500).json({ error: 'Erro ao listar produtos por categoria' });
+      const response: ApiResponse = {
+        success: false,
+        error: 'Erro ao listar produtos por categoria'
+      };
+      res.status(500).json(response);
     }
   });
   
   app.get('/api/products/featured', async (req, res) => {
     try {
-      const products = await menuStorage.getFeaturedProducts();
-      res.json(products);
+      const products = await listFeaturedProducts();
+      const response: ApiResponse = {
+        success: true,
+        data: products
+      };
+      res.json(response);
     } catch (error) {
       console.error('Erro ao listar produtos em destaque:', error);
-      res.status(500).json({ error: 'Erro ao listar produtos em destaque' });
+      const response: ApiResponse = {
+        success: false,
+        error: 'Erro ao listar produtos em destaque'
+      };
+      res.status(500).json(response);
     }
   });
   
   app.get('/api/products/promotions', async (req, res) => {
     try {
-      const products = await menuStorage.getPromotionProducts();
-      res.json(products);
+      const products = await listPromotionProducts();
+      const response: ApiResponse = {
+        success: true,
+        data: products
+      };
+      res.json(response);
     } catch (error) {
       console.error('Erro ao listar produtos em promoção:', error);
-      res.status(500).json({ error: 'Erro ao listar produtos em promoção' });
+      const response: ApiResponse = {
+        success: false,
+        error: 'Erro ao listar produtos em promoção'
+      };
+      res.status(500).json(response);
     }
   });
   
@@ -708,6 +899,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       
       // Salvar dados atualizados
       saveQueueData(queueData);
+      
       
       // Marcador para controlar se o email já foi enviado
       let emailJaEnviado = false;

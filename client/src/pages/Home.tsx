@@ -1,6 +1,7 @@
 import CategoryCard from "@/components/CategoryCard";
 import ProductCard from "@/components/ProductCard";
 import { Button } from "@/components/ui/button";
+import { getCategories, getFeaturedProducts, getPromotionProducts } from "@/lib/api";
 import { Category, Product } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -13,6 +14,7 @@ const Home = () => {
     error: categoriesError,
   } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
+    queryFn: getCategories
   });
 
   // Buscar produtos em destaque
@@ -22,6 +24,7 @@ const Home = () => {
     error: productsError,
   } = useQuery<Product[]>({
     queryKey: ['/api/products/featured'],
+    queryFn: getFeaturedProducts
   });
 
   // Buscar produtos em promoção
@@ -31,6 +34,7 @@ const Home = () => {
     error: promotionsError,
   } = useQuery<Product[]>({
     queryKey: ['/api/products/promotions'],
+    queryFn: getPromotionProducts
   });
 
   // Filtrar apenas produtos disponíveis
@@ -93,7 +97,7 @@ const Home = () => {
               {categories && categories.map((category) => (
                 <CategoryCard 
                   key={category.id} 
-                  id={String(category.id)} 
+                  id={category.id} 
                   name={category.name} 
                 />
               ))}
@@ -136,7 +140,7 @@ const Home = () => {
                       description: product.description || '',
                       imageUrl: product.imageUrl || '',
                       available: true,
-                      categoryId: product.categoryId
+                      categoryId: String(product.categoryId)
                     }}
                   />
                 ))
@@ -253,7 +257,7 @@ const Home = () => {
                       description: product.description || '',
                       imageUrl: product.imageUrl || '',
                       available: true,
-                      categoryId: product.categoryId
+                      categoryId: String(product.categoryId)
                     }}
                   />
                 ))}

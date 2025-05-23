@@ -1,7 +1,7 @@
 import { Link } from "wouter";
 
 interface CategoryCardProps {
-  id: number;
+  id: string;
   name: string;
   imageUrl?: string;
 }
