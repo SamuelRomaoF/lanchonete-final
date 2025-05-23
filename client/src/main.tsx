@@ -1,7 +1,7 @@
 import { createRoot } from "react-dom/client";
-import App from "./App";
+import App from "./App.js";
 import "./index.css";
-import { initializeStorage } from './lib/storage';
+import { initializeStorage } from './lib/storage.js';
 
 // Configuração para remixicon
 import "remixicon/fonts/remixicon.css";

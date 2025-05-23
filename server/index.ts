@@ -1,9 +1,9 @@
 import cors from 'cors';
 import express, { NextFunction, type Request, Response } from "express";
 import { createServer, Server } from "http";
-import { setupAuth } from "./auth";
-import { registerRoutes } from "./routes";
-import { log, serveStatic, setupVite } from "./vite-server";
+import { setupAuth } from "./auth.js";
+import { registerRoutes } from "./routes.js";
+import { log, serveStatic, setupVite } from "./vite-server.js";
 
 const app = express();
 
@@ -115,24 +115,4 @@ const startServer = async (initialPort: number, maxAttempts: number = 10) => {
         attempts++;
       } else {
         // Qualquer outro erro, logue e pare de tentar
-        log(`Erro ao iniciar servidor: ${error instanceof Error ? error.message : String(error)}`);
-        throw error;
-      }
-    }
-  }
-
-  // Se chegou aqui, não foi possível encontrar uma porta disponível após o máximo de tentativas
-  throw new Error(`Não foi possível encontrar uma porta disponível após ${maxAttempts} tentativas`);
-};
-
-// Inicializa o servidor
-(async () => {
-  try {
-    // Usar porta 3001 como padrão ou definida pelo ambiente
-    const initialPort = parseInt(process.env.PORT || "3001", 10);
-    await startServer(initialPort);
-  } catch (error) {
-    log(`Falha ao iniciar o servidor: ${error instanceof Error ? error.message : String(error)}`);
-    process.exit(1);
-  }
-})();
+        log(`

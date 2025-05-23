@@ -1,5 +1,4 @@
 import { useAuth } from "@/context/AuthContext";
-import { UserProfile } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 
 interface UseUserHookResult {

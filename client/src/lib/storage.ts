@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 // Bucket para armazenamento de imagens de produtos
 const PRODUCT_IMAGES_BUCKET = 'product-images';

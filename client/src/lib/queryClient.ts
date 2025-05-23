@@ -1,5 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { fetchFromApi } from "./api";
+import { fetchFromApi } from "./api.js";
 
 // Função auxiliar para requisições da API que retorna a resposta completa
 export async function apiRequest(

@@ -1,13 +1,14 @@
-import { ApiResponse, insertOrderSchema, Order, OrderItem, OrderStatus, Payment, PaymentMethod, PaymentStatus, Product } from "@shared/schema";
 import * as bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
-import emailService from './email-service';
-import * as menuStorage from './menu-storage';
-import { checkAndResetQueueForNewDay, loadQueueData, saveQueueData } from './queue-storage';
-import { storage } from "./storage";
-import whatsappService from './whatsapp-service';
+import type { ApiResponse, Order, OrderItem, OrderStatus, Payment, PaymentMethod, PaymentStatus, Product } from "../shared/schema.js";
+import { insertOrderSchema } from "../shared/schema.js";
+import emailService from './email-service.js';
+import * as menuStorage from './menu-storage.js';
+import { checkAndResetQueueForNewDay, loadQueueData, saveQueueData } from './queue-storage.js';
+import { storage } from "./storage.js";
+import whatsappService from './whatsapp-service.js';
 
 // Função para lidar com erros do Zod
 function handleZodError(error: z.ZodError) {

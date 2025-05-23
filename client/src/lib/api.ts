@@ -1,5 +1,5 @@
 import { ApiResponse, Category, Order, OrderStatus, PaymentMethod, PaymentStatus, Product } from "@shared/schema";
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 // API URL base, será substituída em produção pelo Netlify
 const API_BASE_URL = import.meta.env.PROD 

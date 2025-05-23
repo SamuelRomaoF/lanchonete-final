@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import path from 'path';
-import { Category, Product } from '../shared/schema';
+import { Category, Product } from '../shared/schema.js';
 
 // Carregar env do arquivo .env.local na pasta client
 const envPath = path.resolve(process.cwd(), 'client', '.env.local');

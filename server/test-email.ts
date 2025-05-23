@@ -1,4 +1,4 @@
-import emailService from './email-service';
+import emailService from './email-service.js';
 
 async function testEmail() {
   console.log('Iniciando teste de e-mail...');

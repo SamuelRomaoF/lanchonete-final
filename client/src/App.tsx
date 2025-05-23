@@ -22,7 +22,7 @@ import OrderHistory from "@/pages/OrderHistory";
 import ProductsList from "@/pages/ProductsList";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Route, Switch } from "wouter";
-import { queryClient } from "./lib/queryClient";
+import { queryClient } from "./lib/queryClient.js";
 
 function Router() {
   return (
