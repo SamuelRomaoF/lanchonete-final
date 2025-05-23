@@ -436,7 +436,7 @@ export async function registerRoutes(app: Express): Promise<void> {
     try {
       const id = req.params.id;
       if (!id || typeof id !== 'string' || id.trim() === '') return res.status(400).json({ message: "ID inválido" });
-      const product = await storage.getProduct(id);
+      const product = await storage.getProduct(id as string);
       if (!product) return res.status(404).json({ message: "Produto não encontrado" });
       return res.status(200).json(product);
     } catch (error) {
@@ -700,19 +700,14 @@ export async function registerRoutes(app: Express): Promise<void> {
       if (!updatedPayment) {
         return res.status(404).json({ message: "Pagamento não encontrado" });
       }
-      // Se o pagamento for aprovado, atualizar status do pedido para em_preparo
-      let orderId = updatedPayment.orderId;
-      if (!orderId) {
-        // fallback: buscar o pagamento pelo id e pegar o orderId
-        const payment = await storage.getPayment(id);
-        orderId = payment?.orderId;
+      if (!updatedPayment.orderId) {
+        return res.status(500).json({ message: "Pagamento inconsistente: não possui orderId." });
       }
-      if (status === 'paid' && typeof orderId === 'string' && orderId.trim() !== '') {
-        await storage.updateOrderStatus(orderId, 'em_preparo');
+      if (status === 'paid') {
+        await storage.updateOrderStatus(updatedPayment.orderId, 'em_preparo');
       }
-      // Se o pagamento for recusado, atualizar status do pedido para cancelado
-      if (status === 'failed' && typeof orderId === 'string' && orderId.trim() !== '') {
-        await storage.updateOrderStatus(orderId, 'cancelado');
+      if (status === 'failed') {
+        await storage.updateOrderStatus(updatedPayment.orderId, 'cancelado');
       }
       return res.status(200).json({
         message: "Status do pagamento atualizado com sucesso",
