@@ -1,6 +1,8 @@
-import ProductCard from "@/components/ProductCard";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
+import ProductCard from "../components/ProductCard.js";
+import { Badge } from "../components/ui/badge.js";
+import { Button } from "../components/ui/button.js";
 import {
     Card,
     CardContent,
@@ -8,7 +10,7 @@ import {
     CardFooter,
     CardHeader,
     CardTitle,
-} from "@/components/ui/card";
+} from "../components/ui/card.js";
 import {
     Dialog,
     DialogContent,
@@ -16,13 +18,11 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "@/components/ui/dialog";
-import { Separator } from "@/components/ui/separator";
-import { useCart } from "@/context/CartContext";
-import { OrderTicket, useOrderQueue } from "@/context/OrderQueueContext";
-import { formatCurrency } from "@/lib/utils/formatCurrency";
-import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+} from "../components/ui/dialog.js";
+import { Separator } from "../components/ui/separator.js";
+import { useCart } from "../context/CartContext.js";
+import { OrderTicket, useOrderQueue } from "../context/OrderQueueContext.js";
+import { formatCurrency } from "../lib/utils/formatCurrency.js";
 
 const statusConfig: Record<string, {color: string, text: string}> = {
   recebido: { color: "bg-slate-200 dark:bg-slate-700", text: "Recebido" },

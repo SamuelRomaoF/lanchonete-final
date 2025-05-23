@@ -1,5 +1,5 @@
-import { useAuth } from "@/context/AuthContext";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "../context/AuthContext.js";
 
 interface UseUserHookResult {
   profile: UserProfile | null;

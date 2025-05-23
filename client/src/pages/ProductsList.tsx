@@ -1,11 +1,11 @@
-import ProductCard from "@/components/ProductCard";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Category, Product } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "wouter";
+import ProductCard from "../components/ProductCard.js";
+import { Input } from "../components/ui/input.js";
+import { Skeleton } from "../components/ui/skeleton.js";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs.js";
 
 const ProductsList = () => {
   const { categoria } = useParams();
