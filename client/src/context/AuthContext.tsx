@@ -39,8 +39,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return {
       id: supabaseUser.id,
       email: supabaseUser.email || "",
-      // Por padrão, consideramos todos usuários autenticados como admin
-      // Em uma implementação mais robusta, você pode verificar claims ou metadados
+      name: supabaseUser.user_metadata?.name || "Usuário",
       type: 'admin'
     };
   };

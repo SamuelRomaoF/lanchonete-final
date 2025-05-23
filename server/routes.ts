@@ -37,7 +37,7 @@ const adminMiddleware = (req: Request, res: Response, next: Function) => {
   next();
 };
 
-// Função auxiliar para converter tipos
+// Função para converter tipos de dados
 function convertOrder(order: any): any {
   return {
     ...order,
@@ -46,12 +46,16 @@ function convertOrder(order: any): any {
       ...item,
       id: String(item.id || crypto.randomUUID()),
       orderId: String(order.id),
-      productId: item.productId ? String(item.productId) : undefined
+      productId: item.productId ? String(item.productId) : undefined,
+      price: Number(item.price || 0),
+      quantity: Number(item.quantity || 1)
     })) : [],
     totalAmount: Number(order.totalAmount || order.total || 0),
     total: Number(order.total || order.totalAmount || 0),
     created_at: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
-    updated_at: order.updated_at ? new Date(order.updated_at).toISOString() : undefined
+    updated_at: order.updated_at ? new Date(order.updated_at).toISOString() : undefined,
+    createdAt: order.createdAt ? new Date(order.createdAt).toISOString() : undefined,
+    updatedAt: order.updatedAt ? new Date(order.updatedAt).toISOString() : undefined
   };
 }
 

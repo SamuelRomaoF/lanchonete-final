@@ -1,4 +1,4 @@
-import { Category, Order, Product } from '@shared/schema';
+import { ApiResponse, Category, Order, Product } from "@shared/schema";
 import { supabase } from './supabase';
 
 // API URL base, será substituída em produção pelo Netlify
@@ -24,12 +24,12 @@ export async function fetchFromApi<T>(
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => null);
+      const errorData = await response.json().catch(() => null) as ApiResponse;
       throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
     }
 
-    const data = await response.json();
-    return data as T;
+    const data = await response.json() as ApiResponse;
+    return (data.data || data) as T;
   } catch (error) {
     console.error(`Erro ao chamar API ${endpoint}:`, error);
     throw error;

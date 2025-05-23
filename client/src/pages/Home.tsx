@@ -136,7 +136,7 @@ const Home = () => {
                       description: product.description || '',
                       imageUrl: product.imageUrl || '',
                       available: true,
-                      categoryId: product.categoryId || ''
+                      categoryId: String(product.categoryId)
                     }}
                   />
                 ))
@@ -253,7 +253,7 @@ const Home = () => {
                       description: product.description || '',
                       imageUrl: product.imageUrl || '',
                       available: true,
-                      categoryId: product.categoryId || ''
+                      categoryId: String(product.categoryId)
                     }}
                   />
                 ))}

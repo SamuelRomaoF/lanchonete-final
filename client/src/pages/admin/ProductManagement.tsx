@@ -186,7 +186,11 @@ const ProductManagement = () => {
         data.imageUrl = imageUrl;
       }
       
-      return createProduct(data);
+      return createProduct({
+        ...data,
+        categoryId: String(data.categoryId),
+        description: data.description || ''
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -227,7 +231,11 @@ const ProductManagement = () => {
         data.imageUrl = imageUrl;
       }
       
-      return updateProduct(id.toString(), data);
+      return updateProduct(id.toString(), {
+        ...data,
+        categoryId: String(data.categoryId),
+        description: data.description || ''
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });

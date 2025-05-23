@@ -47,9 +47,9 @@ export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export const productSchema = z.object({
   id: z.string(),
   name: z.string(),
-  description: z.string(),
+  description: z.string().optional(),
   price: z.number(),
-  imageUrl: z.string(),
+  imageUrl: z.string().optional(),
   categoryId: z.string(),
   available: z.boolean(),
   isFeatured: z.boolean(),
@@ -124,11 +124,11 @@ export type InsertOrder = z.infer<typeof insertOrderSchema>;
 
 // Tipos de resposta da API
 export const apiResponseSchema = z.object({
-  success: z.boolean(),
+  success: z.boolean().optional(),
   message: z.string().optional(),
   data: z.any().optional(),
   error: z.string().optional(),
-  orders: z.array(orderSchema).optional() // Para compatibilidade com respostas antigas
+  orders: z.array(orderSchema).optional()
 });
 
 export type ApiResponse = z.infer<typeof apiResponseSchema>;
