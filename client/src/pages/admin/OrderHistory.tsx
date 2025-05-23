@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { getOrders, updateOrderStatus } from "@/lib/api";
+import { getOrders } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { Order } from "@shared/schema";
 import { useQuery, useQueryClient } from "@tanstack/react-query";

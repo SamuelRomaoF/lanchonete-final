@@ -285,6 +285,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/categories', async (req, res) => {
     try {
       const categories = await menuStorage.loadCategories();
+      console.log(categories.length);
+      const products = await menuStorage.loadProducts();
+      console.log(products.length);
       res.json(categories);
     } catch (error) {
       console.error('Erro ao listar categorias:', error);
@@ -432,14 +435,9 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/products/:id', async (req, res) => {
     try {
       const id = req.params.id;
-      if (!id) {
-        return res.status(400).json({ message: "ID inválido" });
-      }
-      const products = await menuStorage.loadProducts();
-      const product = products.find(p => p.id === id);
-      if (!product) {
-        return res.status(404).json({ message: "Produto não encontrado" });
-      }
+      if (!id) return res.status(400).json({ message: "ID inválido" });
+      const product = await storage.getProduct(id);
+      if (!product) return res.status(404).json({ message: "Produto não encontrado" });
       return res.status(200).json(product);
     } catch (error) {
       console.error('Erro ao buscar produto:', error);
@@ -552,25 +550,17 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post('/api/orders', async (req, res) => {
     try {
       const { orderData, items } = req.body;
-      
-      // Validar dados do pedido
       const orderResult = insertOrderSchema.safeParse(orderData);
-      
       if (!orderResult.success) {
         return res.status(400).json(handleZodError(orderResult.error));
       }
-      
-      // Verificar se items é um array válido
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ 
           message: "Erro de validação",
           errors: [{ path: "items", message: "Itens do pedido são obrigatórios" }]
         });
       }
-      
-      // Criar o pedido com os dados validados
-      const newOrder = await storage.createOrder(orderResult.data, items);
-      
+      const newOrder = await storage.createOrder({ ...orderResult.data, items });
       return res.status(201).json({
         message: "Pedido criado com sucesso",
         order: newOrder
@@ -732,9 +722,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/admin/dashboard', adminMiddleware, async (req, res) => {
     try {
       const categories = await storage.getCategories();
-      console.log(categories.length);
       const products = await storage.getProducts();
-      console.log(products.length);
       const orders = await storage.getOrders();
       const stats = {
         totalCategories: categories.length,
@@ -1364,7 +1352,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       
       // Criar o pedido com os dados validados
-      const newOrder = await storage.createOrder(orderResult.data, items);
+      const newOrder = await storage.createOrder({ ...orderResult.data, items });
       
       return res.status(201).json({
         message: "Pedido criado com sucesso",

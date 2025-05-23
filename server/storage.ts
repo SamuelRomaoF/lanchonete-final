@@ -495,14 +495,3 @@ export class MemStorage implements IStorage {
 
 // Use apenas o MemStorage como implementação
 export const storage = new MemStorage();
-
-// Atualizar outras funções que usam números como strings
-async function getOrderById(id: string): Promise<any> {
-  try {
-    const order = await db.get('orders').find({ id: String(id) }).value();
-    return order ? convertOrder(order) : null;
-  } catch (error) {
-    console.error(`Erro ao buscar pedido ${id}:`, error);
-    throw error;
-  }
-}
