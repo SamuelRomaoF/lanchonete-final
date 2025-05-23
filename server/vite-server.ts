@@ -10,7 +10,8 @@ import viteConfig from "../vite.config";
 
 const viteLogger = viteCreateLogger();
 
-const __filename = fileURLToPath(import.meta.url);
+// @ts-ignore
+const __filename = fileURLToPath((import.meta as any).url);
 const __dirname = path.dirname(__filename);
 
 export function log(message: string, source = "express") {
