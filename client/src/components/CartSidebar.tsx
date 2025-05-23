@@ -1,10 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { useCart } from "@/context/CartContext";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
 import { useLocation } from "wouter";
+import { useCart } from "../context/CartContext.js";
+import { useToast } from "../hooks/use-toast.js";
+import { formatCurrency } from "../lib/utils.js";
 import "./cart-sidebar-styles.css"; // Importamos um arquivo CSS personalizado
+import { Button } from "./ui/button.js";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "./ui/sheet.js";
 
 interface CartSidebarProps {
   isOpen: boolean;

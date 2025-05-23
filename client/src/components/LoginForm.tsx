@@ -1,15 +1,15 @@
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useAuth } from "@/context/AuthContext";
-import { useToast } from "@/hooks/use-toast";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
 import { z } from "zod";
+import { useAuth } from "../context/AuthContext.js";
+import { useToast } from "../hooks/use-toast.js";
+import { Button } from "./ui/button.js";
+import { Checkbox } from "./ui/checkbox.js";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form.js";
+import { Input } from "./ui/input.js";
 
 interface LoginFormProps {
   onSuccess?: () => void;

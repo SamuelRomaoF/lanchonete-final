@@ -1,12 +1,12 @@
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { useCart } from "@/context/CartContext";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils";
 import { motion } from 'framer-motion';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { Product } from "../../shared/schema.js";
+import { useCart } from "../context/CartContext.js";
+import { useToast } from "../hooks/use-toast.js";
+import { formatCurrency } from "../lib/utils.js";
+import { Badge } from "./ui/badge.js";
+import { Button } from "./ui/button.js";
 
 interface ProductCardProps {
   product: Product;

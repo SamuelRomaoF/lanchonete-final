@@ -1,7 +1,12 @@
-import CartSidebar from "@/components/CartSidebar";
-import { ThemeToggle } from "@/components/ThemeToggle";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { ClipboardList, FolderTree, LayoutDashboard, LogOut, Package, Receipt, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useLocation } from "wouter";
+import { useAuth } from "../context/AuthContext.js";
+import { useCart } from "../context/CartContext.js";
+import CartSidebar from "./CartSidebar.js";
+import { ThemeToggle } from "./ThemeToggle.js";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar.js";
+import { Button } from "./ui/button.js";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,12 +15,7 @@ import {
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useAuth } from "@/context/AuthContext";
-import { useCart } from "@/context/CartContext";
-import { ClipboardList, FolderTree, LayoutDashboard, LogOut, Package, Receipt, User } from "lucide-react";
-import { useEffect, useState } from "react";
-import { Link, useLocation } from "wouter";
+} from "./ui/dropdown-menu.js";
 
 const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);

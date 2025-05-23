@@ -1,11 +1,11 @@
-import { Button } from "@/components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useCart } from "@/context/CartContext";
-import { useOrderQueue } from "@/context/OrderQueueContext";
-import { useToast } from "@/hooks/use-toast";
-import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useCart } from "../context/CartContext.js";
+import { useOrderQueue } from "../context/OrderQueueContext.js";
+import { useToast } from "../hooks/use-toast.js";
+import { formatCurrency } from "../lib/utils/formatCurrency.js";
+import { Button } from "./ui/button.js";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form.js";
+import { Input } from "./ui/input.js";
 // Importação comentada para evitar erros
 // import AbacatePay from "abacatepay-nodejs-sdk";
 import { useEffect, useState } from "react";
