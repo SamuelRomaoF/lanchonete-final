@@ -10,14 +10,15 @@ export type OrderStatus = "recebido" | "em_preparo" | "pronto" | "entregue" | "c
 export type PaymentMethod = "pix" | "cartao" | "dinheiro";
 
 // Enum para status de pagamento
-export type PaymentStatus = "pending" | "paid" | "cancelled";
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
 // Tipos de usuário
 export const userSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().email(),
-  type: z.enum(["admin", "customer"]),
+  password: z.string().optional(),
+  type: z.enum(["cliente", "admin"]),
   address: z.string().optional(),
   phone: z.string().optional(),
   created_at: z.string().datetime().optional(),
@@ -26,6 +27,7 @@ export const userSchema = z.object({
 
 export type User = z.infer<typeof userSchema>;
 export type UserProfile = Omit<User, "password">;
+export type InsertUser = Omit<User, "id" | "created_at" | "updated_at">;
 
 // Tipos de categoria
 export const categorySchema = z.object({
@@ -64,6 +66,7 @@ export type InsertProduct = z.infer<typeof insertProductSchema>;
 // Tipos de item do pedido
 export const orderItemSchema = z.object({
   id: z.number().optional(),
+  orderId: z.string().optional(),
   productId: z.number().optional(),
   name: z.string(),
   price: z.number(),
@@ -77,6 +80,7 @@ export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
 
 // Tipos de pagamento
 export const paymentSchema = z.object({
+  id: z.string().optional(),
   method: z.enum(["pix", "credit_card", "debit_card", "cash"]),
   status: z.enum(["pending", "paid", "failed", "refunded"]),
   amount: z.number(),
@@ -86,7 +90,7 @@ export const paymentSchema = z.object({
 });
 
 export type Payment = z.infer<typeof paymentSchema>;
-export const insertPaymentSchema = paymentSchema;
+export const insertPaymentSchema = paymentSchema.omit({ id: true });
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 // Tipos de pedido
@@ -96,16 +100,21 @@ export const orderSchema = z.object({
   status: z.enum(["recebido", "em_preparo", "pronto", "entregue", "cancelado"]),
   items: z.array(orderItemSchema),
   totalAmount: z.number(),
+  total: z.number().optional(), // Alias para totalAmount para compatibilidade
   customer: z.object({
     name: z.string(),
     email: z.string().email(),
-    phone: z.string().optional()
+    phone: z.string().optional(),
+    address: z.string().optional()
   }),
   userId: z.string().optional(),
+  notes: z.string().optional(),
   paymentMethod: z.enum(["pix", "credit_card", "debit_card", "cash"]),
   paymentStatus: z.enum(["pending", "paid", "failed", "refunded"]),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime().optional(),
+  createdAt: z.string().datetime().optional(), // Alias para created_at para compatibilidade
+  updatedAt: z.string().datetime().optional(), // Alias para updated_at para compatibilidade
   paymentDetails: z.record(z.any()).optional()
 });
 
@@ -118,7 +127,8 @@ export const apiResponseSchema = z.object({
   success: z.boolean(),
   message: z.string().optional(),
   data: z.any().optional(),
-  error: z.string().optional()
+  error: z.string().optional(),
+  orders: z.array(orderSchema).optional() // Para compatibilidade com respostas antigas
 });
 
 export type ApiResponse = z.infer<typeof apiResponseSchema>;

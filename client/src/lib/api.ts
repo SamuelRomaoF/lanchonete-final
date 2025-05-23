@@ -7,7 +7,7 @@ const API_BASE_URL = import.meta.env.PROD
   : '/api';
 
 // Função auxiliar para fazer requisições à API
-async function fetchFromApi<T>(
+export async function fetchFromApi<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
