@@ -40,7 +40,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
       id: supabaseUser.id,
       email: supabaseUser.email || "",
       name: supabaseUser.user_metadata?.name || "Usuário",
-      type: 'admin'
+      type: 'admin',
+      address: "",
+      phone: "",
     };
   };
   

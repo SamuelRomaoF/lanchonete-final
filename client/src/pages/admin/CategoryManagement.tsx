@@ -61,8 +61,13 @@ const CategoryManagement = () => {
   
   // Mutation para criar categoria
   const createCategoryMutation = useMutation({
-    mutationFn: (data: CategoryFormValues) => {
-      return createCategory(data);
+    mutationFn: async (data: CategoryFormValues) => {
+      const newCategory = await createCategory({
+        name: data.name,
+        description: data.description || "",
+        imageUrl: ""
+      });
+      return newCategory;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });

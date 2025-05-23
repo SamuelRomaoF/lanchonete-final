@@ -49,12 +49,15 @@ export interface IStorage {
   createOrder(order: InsertOrder): Promise<Order>;
   updateOrder(id: string, order: Partial<InsertOrder>): Promise<Order | undefined>;
   deleteOrder(id: string): Promise<boolean>;
+  getOrdersByUser(userId: string): Promise<Order[]>;
+  getOrderWithItems(id: string): Promise<Order | undefined>;
+  updateOrderStatus(id: string, status: OrderStatus): Promise<Order | undefined>;
   
   // Pagamentos
-  getPayment(id: number): Promise<Payment | undefined>;
-  getPaymentByOrder(orderId: number): Promise<Payment | undefined>;
+  getPayment(id: string): Promise<Payment | undefined>;
+  getPaymentByOrder(orderId: string): Promise<Payment | undefined>;
   createPayment(payment: InsertPayment): Promise<Payment>;
-  updatePaymentStatus(id: number, status: string): Promise<Payment | undefined>;
+  updatePaymentStatus(id: string, status: PaymentStatus): Promise<Payment | undefined>;
   
   // Dashboard
   getDashboardStats(): Promise<{
@@ -106,12 +109,12 @@ export class MemStorage implements IStorage {
   private orderItems: Map<string, OrderItem>;
   private payments: Map<string, Payment>;
   
-  private currentUserId: number;
-  private currentCategoryId: number;
-  private currentProductId: number;
-  private currentOrderId: number;
-  private currentOrderItemId: number;
-  private currentPaymentId: number;
+  private currentUserId: string;
+  private currentCategoryId: string;
+  private currentProductId: string;
+  private currentOrderId: string;
+  private currentOrderItemId: string;
+  private currentPaymentId: string;
 
   constructor() {
     this.users = new Map();
@@ -121,22 +124,23 @@ export class MemStorage implements IStorage {
     this.orderItems = new Map();
     this.payments = new Map();
     
-    this.currentUserId = 1;
-    this.currentCategoryId = 1;
-    this.currentProductId = 1;
-    this.currentOrderId = 1;
-    this.currentOrderItemId = 1;
-    this.currentPaymentId = 1;
+    this.currentUserId = "1";
+    this.currentCategoryId = "1";
+    this.currentProductId = "1";
+    this.currentOrderId = "1";
+    this.currentOrderItemId = "1";
+    this.currentPaymentId = "1";
     
     // Criar usuário admin padrão
-    this.createUser({
+    const adminUser: InsertUser = {
       name: "Admin",
       email: "admin@example.com",
       password: "admin123",
       type: "admin",
       address: "",
       phone: ""
-    }).catch(console.error);
+    };
+    this.createUser(adminUser).catch(console.error);
   }
 
   private async seedData() {
@@ -290,8 +294,8 @@ export class MemStorage implements IStorage {
   }
 
   async createCategory(insertCategory: InsertCategory): Promise<Category> {
-    const id = this.currentCategoryId.toString();
-    this.currentCategoryId++;
+    const id = this.currentCategoryId;
+    this.currentCategoryId = (parseInt(this.currentCategoryId) + 1).toString();
     const category: Category = { ...insertCategory, id };
     this.categories.set(id, category);
     return category;
@@ -338,8 +342,8 @@ export class MemStorage implements IStorage {
   }
 
   async createProduct(insertProduct: InsertProduct): Promise<Product> {
-    const id = this.currentProductId.toString();
-    this.currentProductId++;
+    const id = this.currentProductId;
+    this.currentProductId = (parseInt(this.currentProductId) + 1).toString();
     const product: Product = { ...insertProduct, id };
     this.products.set(id, product);
     return product;
@@ -368,12 +372,16 @@ export class MemStorage implements IStorage {
   }
 
   async createOrder(insertOrder: InsertOrder): Promise<Order> {
-    const id = this.currentOrderId++;
+    const id = this.currentOrderId;
+    this.currentOrderId = (parseInt(this.currentOrderId) + 1).toString();
     const now = new Date();
     const order: Order = { 
       ...insertOrder, 
       id,
+      ticketNumber: `T${id}`,
       status: insertOrder.status || "recebido",
+      totalAmount: insertOrder.items.reduce((acc, item) => acc + (item.price * item.quantity), 0),
+      created_at: now.toISOString(),
       createdAt: now.toISOString()
     };
     this.orders.set(id, order);
@@ -394,11 +402,11 @@ export class MemStorage implements IStorage {
   }
   
   // Implementação de Pagamentos
-  async getPayment(id: number): Promise<Payment | undefined> {
+  async getPayment(id: string): Promise<Payment | undefined> {
     return this.payments.get(id);
   }
 
-  async getPaymentByOrder(orderId: number): Promise<Payment | undefined> {
+  async getPaymentByOrder(orderId: string): Promise<Payment | undefined> {
     for (const payment of this.payments.values()) {
       if (payment.orderId === orderId) {
         return payment;
@@ -408,15 +416,16 @@ export class MemStorage implements IStorage {
   }
 
   async createPayment(paymentData: InsertPayment): Promise<Payment> {
-    const id = this.currentPaymentId++;
+    const id = this.currentPaymentId;
+    this.currentPaymentId = (parseInt(this.currentPaymentId) + 1).toString();
     const now = new Date();
-    const payment: Payment = { ...paymentData, id, createdAt: now };
+    const payment: Payment = { ...paymentData, id, createdAt: now.toISOString() };
     this.payments.set(id, payment);
     return payment;
   }
 
-  async updatePaymentStatus(id: number, status: string): Promise<Payment | undefined> {
-    const payment = this.payments.get(id);
+  async updatePaymentStatus(id: string, status: PaymentStatus): Promise<Payment | undefined> {
+    const payment = await this.getPayment(id);
     if (!payment) return undefined;
     
     const updatedPayment: Payment = { ...payment, status };
@@ -443,28 +452,8 @@ export class MemStorage implements IStorage {
     };
   }
 
-  async getProduct(id: string): Promise<Product | null> {
-    return this.products.get(id) || null;
-  }
-
   async saveProduct(product: Product): Promise<void> {
     this.products.set(product.id, product);
-  }
-
-  async deleteProduct(id: string): Promise<void> {
-    this.products.delete(id);
-  }
-
-  async getOrder(id: string): Promise<Order | null> {
-    return this.orders.get(id) || null;
-  }
-
-  async saveOrder(order: Order): Promise<void> {
-    this.orders.set(order.id, order);
-  }
-
-  async deleteOrder(id: string): Promise<void> {
-    this.orders.delete(id);
   }
 
   async listProducts(): Promise<Product[]> {
@@ -475,16 +464,29 @@ export class MemStorage implements IStorage {
     return Array.from(this.orders.values());
   }
 
-  async getFeaturedProducts(): Promise<Product[]> {
-    return Array.from(this.products.values()).filter(product => product.isFeatured);
-  }
-
-  async getPromotionProducts(): Promise<Product[]> {
-    return Array.from(this.products.values()).filter(product => product.isPromotion);
-  }
-
   async getAvailableProducts(): Promise<Product[]> {
     return Array.from(this.products.values()).filter(product => product.available);
+  }
+
+  async saveOrder(order: Order): Promise<void> {
+    this.orders.set(order.id, order);
+  }
+
+  async getOrdersByUser(userId: string): Promise<Order[]> {
+    return Array.from(this.orders.values()).filter(order => order.userId === userId);
+  }
+
+  async getOrderWithItems(id: string): Promise<Order | undefined> {
+    return this.orders.get(id);
+  }
+
+  async updateOrderStatus(id: string, status: OrderStatus): Promise<Order | undefined> {
+    const order = await this.getOrder(id);
+    if (!order) return undefined;
+    
+    const updatedOrder: Order = { ...order, status };
+    this.orders.set(id, updatedOrder);
+    return updatedOrder;
   }
 }
 

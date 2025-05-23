@@ -144,7 +144,7 @@ const WhatsAppOrders = () => {
     try {
       // Converter itens para o formato esperado pelo addOrder
       const orderItems = order.parsed.items.map((item, index) => ({
-        id: index + 1, // Gerar IDs sequenciais para os itens
+        id: String(index + 1), // Convertendo para string
         name: item.name,
         quantity: item.quantity,
         price: item.price

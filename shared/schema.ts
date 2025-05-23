@@ -123,6 +123,8 @@ export const paymentSchema = z.object({
 });
 
 export type Payment = z.infer<typeof paymentSchema>;
+export const insertPaymentSchema = paymentSchema.omit({ id: true });
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 
 // Tipos de resposta da API
 export const apiResponseSchema = z.object({

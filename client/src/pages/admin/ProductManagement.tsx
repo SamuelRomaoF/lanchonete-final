@@ -188,8 +188,11 @@ const ProductManagement = () => {
       
       return createProduct({
         ...data,
-        categoryId: data.categoryId,
-        description: data.description || ''
+        imageUrl: data.imageUrl || "",
+        description: data.description || "",
+        available: true,
+        isFeatured: false,
+        isPromotion: false
       });
     },
     onSuccess: () => {

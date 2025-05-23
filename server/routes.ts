@@ -64,7 +64,7 @@ function convertOrder(order: any): any {
 async function getProductById(id: string): Promise<Product | null> {
   try {
     if (!id) return null;
-    const product = await storage.getProduct(Number(id));
+    const product = await storage.getProduct(String(id));
     return product ? {
       ...product,
       id: String(product.id),
@@ -174,12 +174,14 @@ async function processPayment(orderId: string, paymentData: any): Promise<Paymen
 
     // Simular processamento de pagamento
     const payment: Payment = {
-      status: 'paid',
+      id: crypto.randomUUID(),
+      status: "paid" as const,
       method: order.paymentMethod,
       amount: order.totalAmount,
-      orderId: order.id,
-      transactionId: crypto.randomUUID(),
-      paymentDetails: paymentData || {}
+      orderId: String(order.id),
+      transactionId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      paymentDetails: {},
+      createdAt: new Date().toISOString()
     };
 
     // Atualizar status do pedido

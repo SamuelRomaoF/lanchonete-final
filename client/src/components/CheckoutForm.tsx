@@ -168,7 +168,7 @@ const CheckoutForm = ({ cartItems, subtotal, onSuccess }: CheckoutFormProps) => 
       
       // Formatando itens do pedido
       const orderItems = cartItems.map(item => ({
-        id: item.id,
+        id: String(item.id),
         name: item.name,
         quantity: item.quantity,
         price: item.price
