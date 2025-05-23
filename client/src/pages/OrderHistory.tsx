@@ -1,3 +1,4 @@
+import { ProductCard } from "@/components/ProductCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -82,8 +83,8 @@ const OrderHistory = () => {
         categoryId: "1", // Valor padrão
         available: true,
         // Propriedades opcionais
-        description: item.notes || undefined,
-        imageUrl: undefined
+        description: item.notes || "",
+        imageUrl: item.imageUrl || ""
       };
       
       addItem(product, item.quantity);
@@ -140,9 +141,14 @@ const OrderHistory = () => {
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {order.items.slice(0, 3).map((item) => (
-                    <Badge key={item.id} variant="outline">
-                      {item.quantity}× {item.name}
-                    </Badge>
+                    <ProductCard
+                      key={item.id}
+                      product={{
+                        ...item,
+                        description: item.notes || "",
+                        imageUrl: item.imageUrl || ""
+                      }}
+                    />
                   ))}
                   {order.items.length > 3 && (
                     <Badge variant="outline">

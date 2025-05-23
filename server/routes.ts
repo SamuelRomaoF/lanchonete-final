@@ -506,10 +506,10 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/users/:userId/orders', authMiddleware, async (req, res) => {
     try {
-      const userId = parseInt(req.params.userId);
+      const userId = req.params.userId;
       const sessionUser = (req as any).session.user;
       
-      if (isNaN(userId)) {
+      if (!userId) {
         return res.status(400).json({ message: "ID de usuário inválido" });
       }
       
@@ -528,10 +528,10 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/orders/:id', authMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const sessionUser = (req as any).session.user;
       
-      if (isNaN(id)) {
+      if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
       
@@ -542,7 +542,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       
       // Verificar se o usuário está buscando seu próprio pedido ou é um admin
-      if (sessionUser.id !== orderDetails.order.userId && sessionUser.type !== 'admin') {
+      if (sessionUser.id !== orderDetails.userId && sessionUser.type !== 'admin') {
         return res.status(403).json({ message: "Não autorizado a ver este pedido" });
       }
       
@@ -587,14 +587,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.patch('/api/orders/:id/status', adminMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const { status } = req.body;
       
-      if (isNaN(id)) {
+      if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
       
-      if (!status || !['pendente', 'confirmado', 'preparo', 'entrega', 'concluido', 'cancelado'].includes(status)) {
+      if (!status || !['recebido', 'em_preparo', 'pronto', 'entregue', 'cancelado'].includes(status)) {
         return res.status(400).json({ message: "Status inválido" });
       }
       
@@ -657,18 +657,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/payments/:id', authMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
-      
-      if (isNaN(id)) {
+      const id = req.params.id;
+      if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
-      
       const payment = await storage.getPayment(id);
-      
       if (!payment) {
         return res.status(404).json({ message: "Pagamento não encontrado" });
       }
-      
       return res.status(200).json(payment);
     } catch (error) {
       console.error('Erro ao buscar pagamento:', error);
@@ -678,18 +674,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/orders/:orderId/payment', authMiddleware, async (req, res) => {
     try {
-      const orderId = parseInt(req.params.orderId);
-      
-      if (isNaN(orderId)) {
+      const orderId = req.params.orderId;
+      if (!orderId) {
         return res.status(400).json({ message: "ID de pedido inválido" });
       }
-      
       const payment = await storage.getPaymentByOrder(orderId);
-      
       if (!payment) {
         return res.status(404).json({ message: "Pagamento não encontrado para este pedido" });
       }
-      
       return res.status(200).json(payment);
     } catch (error) {
       console.error('Erro ao buscar pagamento do pedido:', error);
@@ -699,33 +691,26 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.patch('/api/payments/:id/status', adminMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id);
+      const id = req.params.id;
       const { status } = req.body;
-      
-      if (isNaN(id)) {
+      if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
-      
-      if (!status || !['pendente', 'aprovado', 'recusado'].includes(status)) {
+      if (!status || !['pending', 'paid', 'failed', 'refunded'].includes(status)) {
         return res.status(400).json({ message: "Status inválido" });
       }
-      
       const updatedPayment = await storage.updatePaymentStatus(id, status);
-      
       if (!updatedPayment) {
         return res.status(404).json({ message: "Pagamento não encontrado" });
       }
-      
-      // Se o pagamento for aprovado, atualizar status do pedido para em preparo
-      if (status === 'aprovado') {
-        await storage.updateOrderStatus(updatedPayment.orderId, 'preparo');
+      // Se o pagamento for aprovado, atualizar status do pedido para em_preparo
+      if (status === 'paid') {
+        await storage.updateOrderStatus(updatedPayment.orderId, 'em_preparo');
       }
-      
       // Se o pagamento for recusado, atualizar status do pedido para cancelado
-      if (status === 'recusado') {
+      if (status === 'failed') {
         await storage.updateOrderStatus(updatedPayment.orderId, 'cancelado');
       }
-      
       return res.status(200).json({
         message: "Status do pagamento atualizado com sucesso",
         payment: updatedPayment
@@ -739,7 +724,15 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rota de dashboard para admin ====
   app.get('/api/admin/dashboard', adminMiddleware, async (req, res) => {
     try {
-      const stats = await storage.getDashboardStats();
+      const categories = await storage.getCategories();
+      const products = await storage.getProducts();
+      const orders = await storage.getOrders();
+      const stats = {
+        totalCategories: categories.length,
+        totalProducts: products.length,
+        totalOrders: orders.length,
+        recentOrders: orders.slice(-5)
+      };
       return res.status(200).json(stats);
     } catch (error) {
       console.error('Erro ao buscar estatísticas do dashboard:', error);
