@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #1a1412;
+  --foreground: #ece3dd;
+  --primary: #e67e22;
+  --primary-dark: #d35400;
+  --surface: #46342e;
+  --surface-light: #5a443c;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: 'Inter', sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #2a211c;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #5a443c;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6a544c;
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-[#e67e22] hover:bg-[#d35400] text-white font-medium px-4 py-2 rounded transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply bg-[#46342e] hover:bg-[#5a443c] text-white font-medium px-4 py-2 rounded transition-colors;
+  }
+  
+  .card {
+    @apply bg-[#46342e] rounded-lg p-4 shadow;
+  }
+  
+  .input {
+    @apply bg-[#2a211c] border border-[#5a443c] rounded px-3 py-2 text-white w-full focus:outline-none focus:ring-2 focus:ring-[#e67e22];
+  }
+  
+  .textarea {
+    @apply bg-[#2a211c] border border-[#5a443c] rounded px-3 py-2 text-white w-full resize-none focus:outline-none focus:ring-2 focus:ring-[#e67e22];
+  }
+  
+  .select {
+    @apply bg-[#2a211c] border border-[#5a443c] rounded px-3 py-2 text-white w-full focus:outline-none focus:ring-2 focus:ring-[#e67e22];
+  }
+}

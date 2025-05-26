@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #D35400;
+  --color-secondary: #C2703D;
+  --color-accent: #E67E22;
+  --color-success: #27AE60;
+  --color-warning: #F39C12;
+  --color-error: #E74C3C;
+  
+  --color-text-light: #1E1E1E;
+  --color-text-dark: #F5F5F5;
+  
+  --color-bg-light: #FFFFFF;
+  --color-bg-dark: #2C1A10;
+  
+  /* Adicionar duração padrão de transição */
+  --transition-speed: 200ms;
+}
+
+/* Aplicar transição a todos os elementos */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke;
+  transition-timing-function: ease-in-out;
+  transition-duration: var(--transition-speed);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+}
+
+/* Tema claro - aplicar em todo o documento */
+.light {
+  background-color: white;
+  color: #1a202c;
+}
+
+/* Tema escuro - aplicar em todo o documento */
+.dark {
+  background-color: #2C1A10;
+  color: #f3f4f6;
+}
+
+/* Hero Section */
+.hero-section {
+  @apply relative;
+  background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.pexels.com/photos/1633578/pexels-photo-1633578.jpeg');
+  background-size: cover;
+  background-position: center;
+}
+
+/* Button Styles */
+.btn-primary {
+  @apply bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-md transition-colors duration-300;
+}
+
+.btn-outline {
+  @apply border border-orange-600 text-orange-600 hover:bg-orange-600 hover:text-white font-medium py-2 px-4 rounded-md transition-colors duration-300;
+}
+
+/* Card Styles */
+.category-card {
+  @apply rounded-lg transition-transform duration-300 hover:scale-105 cursor-pointer;
+}
+
+.light .category-card {
+  @apply bg-gray-100 hover:bg-gray-200;
+}
+
+.dark .category-card {
+  @apply bg-[#3C2A1F] hover:bg-[#4C3A2F];
+}
+
+.product-card {
+  @apply rounded-lg overflow-hidden transition-all duration-300 hover:shadow-lg;
+}
+
+.light .product-card {
+  @apply bg-white shadow-md;
+}
+
+.dark .product-card {
+  @apply bg-[#3C2A1F] shadow-md;
+}
+
+/* Input Styles */
+.input-field {
+  @apply py-2 px-4 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-orange-500;
+}
+
+.light .input-field {
+  @apply bg-white border border-gray-300;
+}
+
+.dark .input-field {
+  @apply bg-[#3C2A1F] border border-[#4C3A2F];
+}
+
+/* Section Styles */
+.section-container {
+  @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12;
+}
+
+.section-title {
+  @apply text-3xl font-bold text-center mb-8;
+}
+
+.light .section-title {
+  @apply text-gray-900;
+}
+
+.dark .section-title {
+  @apply text-gray-100;
+}
+
+/* Table Styles */
+.light th, .light td {
+  @apply border-gray-200 text-gray-800;
+}
+
+.dark th, .dark td {
+  @apply border-[#3C2A1F] text-gray-100;
+}
+
+/* Form Styles */
+.light label {
+  @apply text-gray-700;
+}
+
+.dark label {
+  @apply text-gray-300;
+}
+
+/* Modal Styles */
+.light .modal-content {
+  @apply bg-white;
+}
+
+.dark .modal-content {
+  @apply bg-[#2C1A10];
+}
+
+/* Modos de tema específicos para componentes */
+.light .bg-component {
+  background-color: white;
+  border-color: #e5e7eb;
+}
+
+.dark .bg-component {
+  background-color: #2C1A10;
+  border-color: #5a443c;
+}
+
+/* Cores de texto específicas para o tema */
+.light .text-themed {
+  color: #1a202c;
+}
+
+.dark .text-themed {
+  color: #f3f4f6;
+}
+
+/* Estilos específicos para o admin panel */
+.light .admin-card {
+  background-color: white;
+  border-color: #e5e7eb;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+}
+
+.dark .admin-card {
+  background-color: #2a211c;
+  border-color: #5a443c;
+}
