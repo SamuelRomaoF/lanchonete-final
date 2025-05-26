@@ -1,10 +1,9 @@
+import CategoryCard from "@/components/CategoryCard";
+import ProductCard from "@/components/ProductCard";
+import { Button } from "@/components/ui/button";
+import { Category, Product } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
-import { Category, Product } from "../../shared/schema.js";
-import CategoryCard from "../components/CategoryCard.js";
-import ProductCard from "../components/ProductCard.js";
-import { Button } from "../components/ui/button.js";
-import { getCategories, getFeaturedProducts, getPromotionProducts } from "../lib/api.js";
 
 const Home = () => {
   // Buscar categorias
@@ -14,7 +13,6 @@ const Home = () => {
     error: categoriesError,
   } = useQuery<Category[]>({
     queryKey: ['/api/categories'],
-    queryFn: getCategories
   });
 
   // Buscar produtos em destaque
@@ -24,7 +22,6 @@ const Home = () => {
     error: productsError,
   } = useQuery<Product[]>({
     queryKey: ['/api/products/featured'],
-    queryFn: getFeaturedProducts
   });
 
   // Buscar produtos em promoção
@@ -34,7 +31,6 @@ const Home = () => {
     error: promotionsError,
   } = useQuery<Product[]>({
     queryKey: ['/api/products/promotions'],
-    queryFn: getPromotionProducts
   });
 
   // Filtrar apenas produtos disponíveis
@@ -133,15 +129,16 @@ const Home = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {availableFeaturedProducts && availableFeaturedProducts.length > 0 ? (
                 availableFeaturedProducts.map((product) => (
-                  <ProductCard
+                  <ProductCard 
                     key={product.id}
-                    product={{
-                      ...product,
-                      description: product.description || '',
-                      imageUrl: product.imageUrl || '',
-                      available: true,
-                      categoryId: String(product.categoryId)
-                    }}
+                    id={product.id}
+                    name={product.name}
+                    description={product.description || ""}
+                    price={product.price}
+                    oldPrice={product.oldPrice}
+                    imageUrl={product.imageUrl || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    isFeatured={product.isFeatured}
+                    isPromotion={product.isPromotion}
                   />
                 ))
               ) : (
@@ -250,15 +247,16 @@ const Home = () => {
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {availablePromotionProducts.map((product) => (
-                  <ProductCard
+                  <ProductCard 
                     key={product.id}
-                    product={{
-                      ...product,
-                      description: product.description || '',
-                      imageUrl: product.imageUrl || '',
-                      available: true,
-                      categoryId: String(product.categoryId)
-                    }}
+                    id={product.id}
+                    name={product.name}
+                    description={product.description || ""}
+                    price={product.price}
+                    old_price={product.old_price}
+                    image_url={product.image_url || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    is_featured={product.is_featured}
+                    is_promotion={product.is_promotion}
                   />
                 ))}
               </div>

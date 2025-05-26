@@ -1,3 +1,11 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { clearSystemData, getDashboardStats, getOrders, getProducts, syncQueueWithLocalStorage } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { formatDate } from "@/lib/utils/formatDate";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Package, Receipt, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -15,14 +23,6 @@ import {
     YAxis
 } from "recharts";
 import { useLocation } from "wouter";
-import { Button } from "../../components/ui/button.js";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.js";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table.js";
-import { useAuth } from "../../context/AuthContext.js";
-import { useToast } from "../../hooks/use-toast.js";
-import { clearSystemData, getDashboardStats, getOrders, getProducts, syncQueueWithLocalStorage } from "../../lib/api.js";
-import { formatCurrency } from "../../lib/utils/formatCurrency.js";
-import { formatDate } from "../../lib/utils/formatDate.js";
 
 interface DashboardStats {
   totalSales: number;

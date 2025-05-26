@@ -1,5 +1,5 @@
 // Teste de conexão com Supabase
-import { supabase } from './lib/supabase.js';
+import { supabase } from './lib/supabase';
 
 // Função assíncrona para testar a conexão
 async function testSupabaseConnection() {

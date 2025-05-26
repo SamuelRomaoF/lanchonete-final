@@ -1,5 +1,5 @@
+import { checkQueueReset, syncQueue } from '@/lib/api';
 import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
-import { apiRequest } from '../lib/queryClient.js';
 
 // Tipos
 export type OrderStatus = 'recebido' | 'em_preparo' | 'pronto' | 'entregue';
@@ -17,7 +17,7 @@ export interface OrderTicket {
 }
 
 export interface OrderItem {
-  id: string;
+  id: number;
   name: string;
   quantity: number;
   price: number;
@@ -98,7 +98,7 @@ export function OrderQueueProvider({ children }: OrderQueueProviderProps) {
     const checkNewDay = async () => {
       try {
         // Verificar no servidor se é um novo dia
-        const data = await apiRequest('GET', '/api/queue/check-reset');
+        const data = await checkQueueReset();
         
         if (data && data.reset) {
           // Foi resetado no servidor, resetar também localmente
@@ -161,42 +161,17 @@ export function OrderQueueProvider({ children }: OrderQueueProviderProps) {
     
     setIsSyncing(true);
     try {
-      // Primeiro, verificar se o servidor tem dados mais recentes
-      const response = await fetch('/api/queue');
-      const serverData = await response.json();
-      
-      // Verificar se há dados no servidor e compará-los com os locais
-      console.log("Dados do servidor:", serverData);
-      console.log("Dados locais:", { orders, currentPrefix, currentNumber });
-      
-      // Se houver pedidos no servidor, atualizar os estados locais
-      if (serverData.orders && Array.isArray(serverData.orders) && serverData.orders.length > 0) {
-        // Converter as datas para objetos Date
-        const processedOrders = serverData.orders.map((order: any) => ({
-          ...order,
-          createdAt: new Date(order.createdAt)
-        }));
-        
-        // Atualizar o estado local com os dados do servidor
-        setOrders(processedOrders);
-        setCurrentPrefix(serverData.currentPrefix);
-        setCurrentNumber(serverData.currentNumber);
-        
-        console.log("Estado local atualizado com dados do servidor");
-        return;
-      }
-      
-      // Se não houver dados no servidor ou se os dados locais forem mais recentes,
-      // enviar os dados locais para o servidor
-      await apiRequest('POST', '/api/queue/sync', {
+      const response = await syncQueue({
         orders,
-        currentPrefix,
-        currentNumber
+        currentPrefix: 'T',
+        currentNumber: orders.length > 0 ? orders[orders.length - 1].ticket.slice(1) : '0'
       });
-      
-      console.log("Dados locais enviados para o servidor");
+
+      if (response.success) {
+        console.log('Dados sincronizados com sucesso');
+      }
     } catch (error) {
-      console.error("Erro na sincronização com servidor:", error);
+      console.error('Erro ao enviar dados para o servidor:', error);
     } finally {
       setIsSyncing(false);
     }
@@ -209,10 +184,10 @@ export function OrderQueueProvider({ children }: OrderQueueProviderProps) {
     // Enviar para o servidor
     const sendToServer = async () => {
       try {
-        await apiRequest('POST', '/api/queue/sync', {
+        await syncQueue({
           orders,
-          currentPrefix,
-          currentNumber
+          currentPrefix: 'T',
+          currentNumber: orders.length > 0 ? orders[orders.length - 1].ticket.slice(1) : '0'
         });
       } catch (error) {
         console.error('Erro ao enviar dados para o servidor:', error);
@@ -295,36 +270,24 @@ export function OrderQueueProvider({ children }: OrderQueueProviderProps) {
         );
         
         // Enviar dados atualizados para o servidor
-        const response = await fetch('/api/queue/sync', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orders: updatedOrders,
-            currentPrefix,
-            currentNumber
-          })
+        await syncQueue({
+          orders: updatedOrders,
+          currentPrefix: 'T',
+          currentNumber: updatedOrders.length > 0 ? updatedOrders[updatedOrders.length - 1].ticket.slice(1) : '0'
         });
         
-        if (!response.ok) {
-          throw new Error(`Erro ao sincronizar com servidor: ${response.status} ${response.statusText}`);
-        }
-        
-        const result = await response.json();
-        console.log("Resposta da sincronização:", result);
-        
-        // Atualizar localStorage explicitamente
-        localStorage.setItem('orderQueue_orders', JSON.stringify(updatedOrders));
         console.log("Dados salvos no localStorage");
         
         // Forçar nova consulta ao servidor para confirmar que os dados foram salvos
         setTimeout(async () => {
           try {
-            const checkResponse = await fetch('/api/queue');
-            if (checkResponse.ok) {
-              const serverData = await checkResponse.json();
-              console.log("Confirmação do servidor após sincronização:", serverData);
+            const checkResponse = await syncQueue({
+              orders: updatedOrders,
+              currentPrefix: 'T',
+              currentNumber: updatedOrders.length > 0 ? updatedOrders[updatedOrders.length - 1].ticket.slice(1) : '0'
+            });
+            if (checkResponse.success) {
+              console.log("Confirmação do servidor após sincronização:", checkResponse);
             }
           } catch (e) {
             console.error("Erro ao verificar sincronização:", e);
@@ -365,10 +328,10 @@ export function OrderQueueProvider({ children }: OrderQueueProviderProps) {
     // Forçar a sincronização com o servidor
     const syncToServer = async () => {
       try {
-        await apiRequest('POST', '/api/queue/sync', {
-          orders,
-          currentPrefix,
-          currentNumber
+        await syncQueue({
+          orders: orders,
+          currentPrefix: 'T',
+          currentNumber: orders.length > 0 ? orders[orders.length - 1].ticket.slice(1) : '0'
         });
         console.log("Dados sincronizados com o servidor após atualização de status");
       } catch (error) {
@@ -392,10 +355,10 @@ export function OrderQueueProvider({ children }: OrderQueueProviderProps) {
     
     // Enviar reset para o servidor também
     try {
-      apiRequest('POST', '/api/queue/sync', {
+      syncQueue({
         orders: [],
-        currentPrefix: 'A',
-        currentNumber: 1
+        currentPrefix: 'T',
+        currentNumber: 0
       });
     } catch (error) {
       console.error('Erro ao resetar fila no servidor:', error);

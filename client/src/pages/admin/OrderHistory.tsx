@@ -1,21 +1,21 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { getOrders, updateOrderStatus } from "@/lib/api";
+import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { Order } from "@shared/schema";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarIcon, Download, RefreshCw, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { Order } from "../../../shared/schema.js";
-import { Badge } from "../../components/ui/badge.js";
-import { Button } from "../../components/ui/button.js";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card.js";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../../components/ui/dialog.js";
-import { Input } from "../../components/ui/input.js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select.js";
-import { Separator } from "../../components/ui/separator.js";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table.js";
-import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs.js";
-import { useAuth } from "../../context/AuthContext.js";
-import { useToast } from "../../hooks/use-toast.js";
-import { getOrders } from "../../lib/api.js";
-import { formatCurrency } from "../../lib/utils/formatCurrency.js";
 
 const statusConfig: Record<string, {color: string, text: string}> = {
   recebido: { color: "bg-yellow-500", text: "Recebido" },
@@ -95,6 +95,30 @@ const OrderHistory = () => {
     setSelectedOrder(order);
     setNewStatus(order.status || "recebido");
     setIsDetailsOpen(true);
+  };
+  
+  const handleUpdateStatus = async () => {
+    if (selectedOrder && newStatus) {
+      try {
+        await updateOrderStatus(selectedOrder.id.toString(), newStatus);
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+        
+        toast({
+          title: "Status atualizado",
+          description: `Pedido ${selectedOrder.ticketNumber} atualizado para ${statusConfig[newStatus]?.text || newStatus}`,
+        });
+        
+        setIsDetailsOpen(false);
+      } catch (error) {
+        console.error("Erro ao atualizar status:", error);
+        
+        toast({
+          title: "Erro na atualização",
+          description: "Não foi possível atualizar o status do pedido",
+          variant: "destructive",
+        });
+      }
+    }
   };
   
   // Formatação da data completa
@@ -342,6 +366,14 @@ const OrderHistory = () => {
                           </SelectContent>
                         </Select>
                       </div>
+                      {newStatus !== selectedOrder.status && (
+                        <Button 
+                          className="w-full mt-2" 
+                          onClick={handleUpdateStatus}
+                        >
+                          Atualizar Status
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

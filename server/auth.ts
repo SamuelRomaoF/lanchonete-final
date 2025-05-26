@@ -34,7 +34,7 @@ export function setupAuth(app: Express) {
 declare module 'express-session' {
   interface SessionData {
     user?: {
-      id: string;
+      id: number;
       name: string;
       email: string;
       type: 'cliente' | 'admin';

@@ -1,14 +1,18 @@
+import { insertOrderSchema } from "@shared/schema";
 import * as bcrypt from 'bcrypt';
-import crypto from 'crypto';
-import type { Express, Request, Response } from "express";
+import type { Request, Response } from "express";
+import express from 'express';
+import path, { dirname } from 'path';
+import { fileURLToPath } from 'url';
 import { z } from "zod";
-import type { ApiResponse, Order, OrderItem, OrderStatus, Payment, PaymentMethod, PaymentStatus, Product } from "../shared/schema.js";
-import { insertOrderSchema } from "../shared/schema.js";
-import emailService from './email-service.js';
-import * as menuStorage from './menu-storage.js';
-import { checkAndResetQueueForNewDay, loadQueueData, saveQueueData } from './queue-storage.js';
-import { storage } from "./storage.js";
-import whatsappService from './whatsapp-service.js';
+import emailService from './email-service';
+import * as menuStorage from './menu-storage';
+import { checkAndResetQueueForNewDay, loadQueueData, saveQueueData } from './queue-storage';
+import { storage } from "./storage";
+import whatsappService from './whatsapp-service';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Função para lidar com erros do Zod
 function handleZodError(error: z.ZodError) {
@@ -39,190 +43,26 @@ const adminMiddleware = (req: Request, res: Response, next: Function) => {
   next();
 };
 
-// Função para converter tipos de dados
-function convertOrder(order: any): any {
-  return {
-    ...order,
-    id: String(order.id || ''),
-    items: Array.isArray(order.items) ? order.items.map((item: any) => ({
-      ...item,
-      id: String(item.id || crypto.randomUUID()),
-      orderId: String(order.id),
-      productId: item.productId ? String(item.productId) : undefined,
-      price: Number(item.price || 0),
-      quantity: Number(item.quantity || 1)
-    })) : [],
-    totalAmount: Number(order.totalAmount || order.total || 0),
-    total: Number(order.total || order.totalAmount || 0),
-    created_at: order.created_at ? new Date(order.created_at).toISOString() : new Date().toISOString(),
-    updated_at: order.updated_at ? new Date(order.updated_at).toISOString() : undefined,
-    createdAt: order.createdAt ? new Date(order.createdAt).toISOString() : undefined,
-    updatedAt: order.updatedAt ? new Date(order.updatedAt).toISOString() : undefined
-  };
-}
+export async function registerRoutes(app: express.Application): Promise<void> {
+  // Servir arquivos estáticos do diretório client/dist
+  app.use(express.static(path.join(__dirname, '../client/dist')));
 
-// Atualizar funções que lidam com IDs
-async function getProductById(id: string): Promise<Product | null> {
-  try {
-    if (!id) return null;
-    const product = await storage.getProduct(String(id));
-    return product ? {
-      ...product,
-      id: String(product.id),
-      categoryId: String(product.categoryId)
-    } : null;
-  } catch (error) {
-    console.error(`Erro ao buscar produto ${id}:`, error);
-    throw error;
-  }
-}
+  // Rota para a página inicial
+  app.get('/', (req: Request, res: Response) => {
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  });
 
-// Atualizar função de criação de pedido
-async function createOrder(orderData: Partial<Order>): Promise<Order> {
-  try {
-    const now = new Date().toISOString();
-    const totalAmount = Number(orderData.totalAmount || 0);
+  // Rota de fallback para o SPA
+  app.get('*', (req: Request, res: Response) => {
+    // Ignorar rotas de API
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint não encontrado' });
+    }
     
-    const order: Order = {
-      id: crypto.randomUUID(),
-      ticketNumber: `T${Date.now().toString().slice(-6)}`,
-      status: (orderData.status || 'recebido') as OrderStatus,
-      items: (orderData.items || []).map((item: Partial<OrderItem>) => ({
-        id: crypto.randomUUID(),
-        name: item.name || '',
-        price: Number(item.price || 0),
-        quantity: Number(item.quantity || 1),
-        notes: item.notes || ''
-      })),
-      totalAmount,
-      customer: {
-        name: orderData.customer?.name || 'Cliente',
-        email: orderData.customer?.email || 'cliente@example.com',
-        phone: orderData.customer?.phone || '',
-        address: orderData.customer?.address || ''
-      },
-      paymentMethod: (orderData.paymentMethod || 'pix') as PaymentMethod,
-      paymentStatus: (orderData.paymentStatus || 'pending') as PaymentStatus,
-      created_at: now,
-      updated_at: undefined,
-      createdAt: undefined,
-      updatedAt: undefined,
-      notes: orderData.notes || '',
-      userId: orderData.userId || '',
-      paymentDetails: orderData.paymentDetails || {}
-    };
+    // Redirecionar todas as outras rotas para o index.html
+    res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+  });
 
-    await storage.saveOrder(order);
-    return order;
-  } catch (error) {
-    console.error('Erro ao criar pedido:', error);
-    throw error;
-  }
-}
-
-// Atualizar função de atualização de pedido
-async function updateOrder(id: string, orderData: Partial<Order>): Promise<Order> {
-  try {
-    const existingOrder = await storage.getOrder(id);
-    if (!existingOrder) {
-      throw new Error(`Pedido ${id} não encontrado`);
-    }
-
-    const now = new Date().toISOString();
-
-    const updatedOrder: Order = {
-      ...existingOrder,
-      ...orderData,
-      id: id,
-      items: orderData.items?.map((item: Partial<OrderItem>) => ({
-        id: item.id || crypto.randomUUID(),
-        name: item.name || '',
-        price: Number(item.price || 0),
-        quantity: Number(item.quantity || 1),
-        notes: item.notes || ''
-      })) || existingOrder.items,
-      customer: {
-        ...existingOrder.customer,
-        ...orderData.customer,
-        phone: orderData.customer?.phone || existingOrder.customer.phone || '',
-        address: orderData.customer?.address || existingOrder.customer.address || ''
-      },
-      status: (orderData.status || existingOrder.status) as OrderStatus,
-      paymentMethod: (orderData.paymentMethod || existingOrder.paymentMethod) as PaymentMethod,
-      paymentStatus: (orderData.paymentStatus || existingOrder.paymentStatus) as PaymentStatus,
-      updated_at: now,
-      totalAmount: Number(orderData.totalAmount || existingOrder.totalAmount),
-      notes: orderData.notes || existingOrder.notes || '',
-      userId: orderData.userId || existingOrder.userId || '',
-      paymentDetails: orderData.paymentDetails || existingOrder.paymentDetails || {}
-    };
-
-    await storage.saveOrder(updatedOrder);
-    return updatedOrder;
-  } catch (error) {
-    console.error(`Erro ao atualizar pedido ${id}:`, error);
-    throw error;
-  }
-}
-
-// Atualizar função de processamento de pagamento
-async function processPayment(orderId: string, paymentData: any): Promise<Payment> {
-  try {
-    const order = await storage.getOrder(orderId);
-    if (!order) {
-      throw new Error(`Pedido ${orderId} não encontrado`);
-    }
-
-    // Simular processamento de pagamento
-    const payment: Payment = {
-      id: crypto.randomUUID(),
-      status: "paid" as const,
-      method: order.paymentMethod,
-      amount: order.totalAmount,
-      orderId: String(order.id),
-      transactionId: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      paymentDetails: {},
-      createdAt: new Date().toISOString()
-    };
-
-    // Atualizar status do pedido
-    await updateOrder(orderId, {
-      paymentStatus: payment.status,
-      paymentDetails: payment.paymentDetails
-    });
-
-    return payment;
-  } catch (error) {
-    console.error(`Erro ao processar pagamento do pedido ${orderId}:`, error);
-    throw error;
-  }
-}
-
-// Atualizar função de listagem de produtos
-async function listProducts(): Promise<Product[]> {
-  const products = await storage.listProducts();
-  return products;
-}
-
-// Atualizar função de listagem de produtos por categoria
-async function listProductsByCategory(categoryId: string): Promise<Product[]> {
-  const products = await storage.getProductsByCategory(categoryId);
-  return products;
-}
-
-// Atualizar função de listagem de produtos em destaque
-async function listFeaturedProducts(): Promise<Product[]> {
-  const products = await storage.getFeaturedProducts();
-  return products;
-}
-
-// Atualizar função de listagem de produtos em promoção
-async function listPromotionProducts(): Promise<Product[]> {
-  const products = await storage.getPromotionProducts();
-  return products;
-}
-
-export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rotas de autenticação ====
   app.post('/api/auth/login', async (req, res) => {
     try {
@@ -238,7 +78,7 @@ export async function registerRoutes(app: Express): Promise<void> {
         return res.status(401).json({ message: "Credenciais inválidas" });
       }
       
-      const isPasswordValid = await bcrypt.compare(password, String(user.password));
+      const isPasswordValid = await bcrypt.compare(password, user.password);
       
       if (!isPasswordValid) {
         return res.status(401).json({ message: "Credenciais inválidas" });
@@ -286,9 +126,6 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.get('/api/categories', async (req, res) => {
     try {
       const categories = await menuStorage.loadCategories();
-      console.log(categories.length);
-      const products = await menuStorage.loadProducts();
-      console.log(products.length);
       res.json(categories);
     } catch (error) {
       console.error('Erro ao listar categorias:', error);
@@ -363,84 +200,60 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rotas de produtos ====
   app.get('/api/products', async (req, res) => {
     try {
-      const products = await listProducts();
-      const response: ApiResponse = {
-        success: true,
-        data: products
-      };
-      res.json(response);
+      const products = await menuStorage.loadProducts();
+      res.json(products);
     } catch (error) {
       console.error('Erro ao listar produtos:', error);
-      const response: ApiResponse = {
-        success: false,
-        error: 'Erro ao listar produtos'
-      };
-      res.status(500).json(response);
+      res.status(500).json({ error: 'Erro ao listar produtos' });
     }
   });
   
   app.get('/api/products/category/:id', async (req, res) => {
     try {
-      const products = await listProductsByCategory(req.params.id);
-      const response: ApiResponse = {
-        success: true,
-        data: products
-      };
-      res.json(response);
+      const categoryId = req.params.id;
+      const products = await menuStorage.getProductsByCategory(categoryId);
+      res.json(products);
     } catch (error) {
       console.error('Erro ao listar produtos por categoria:', error);
-      const response: ApiResponse = {
-        success: false,
-        error: 'Erro ao listar produtos por categoria'
-      };
-      res.status(500).json(response);
+      res.status(500).json({ error: 'Erro ao listar produtos por categoria' });
     }
   });
   
   app.get('/api/products/featured', async (req, res) => {
     try {
-      const products = await listFeaturedProducts();
-      const response: ApiResponse = {
-        success: true,
-        data: products
-      };
-      res.json(response);
+      const products = await menuStorage.getFeaturedProducts();
+      res.json(products);
     } catch (error) {
       console.error('Erro ao listar produtos em destaque:', error);
-      const response: ApiResponse = {
-        success: false,
-        error: 'Erro ao listar produtos em destaque'
-      };
-      res.status(500).json(response);
+      res.status(500).json({ error: 'Erro ao listar produtos em destaque' });
     }
   });
   
   app.get('/api/products/promotions', async (req, res) => {
     try {
-      const products = await listPromotionProducts();
-      const response: ApiResponse = {
-        success: true,
-        data: products
-      };
-      res.json(response);
+      const products = await menuStorage.getPromotionProducts();
+      res.json(products);
     } catch (error) {
       console.error('Erro ao listar produtos em promoção:', error);
-      const response: ApiResponse = {
-        success: false,
-        error: 'Erro ao listar produtos em promoção'
-      };
-      res.status(500).json(response);
+      res.status(500).json({ error: 'Erro ao listar produtos em promoção' });
     }
   });
   
   app.get('/api/products/:id', async (req, res) => {
     try {
-      const id = String(req.params.id);
-      if (!id || id.trim() === '') {
+      const id = req.params.id;
+      
+      if (!id) {
         return res.status(400).json({ message: "ID inválido" });
       }
-      const product = await storage.getProduct(id);
-      if (!product) return res.status(404).json({ message: "Produto não encontrado" });
+      
+      const products = await menuStorage.loadProducts();
+      const product = products.find(p => p.id === id);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Produto não encontrado" });
+      }
+      
       return res.status(200).json(product);
     } catch (error) {
       console.error('Erro ao buscar produto:', error);
@@ -503,10 +316,10 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/users/:userId/orders', authMiddleware, async (req, res) => {
     try {
-      const userId = req.params.userId;
+      const userId = parseInt(req.params.userId);
       const sessionUser = (req as any).session.user;
       
-      if (!userId) {
+      if (isNaN(userId)) {
         return res.status(400).json({ message: "ID de usuário inválido" });
       }
       
@@ -525,10 +338,10 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/orders/:id', authMiddleware, async (req, res) => {
     try {
-      const id = req.params.id;
+      const id = parseInt(req.params.id);
       const sessionUser = (req as any).session.user;
       
-      if (!id) {
+      if (isNaN(id)) {
         return res.status(400).json({ message: "ID inválido" });
       }
       
@@ -539,7 +352,7 @@ export async function registerRoutes(app: Express): Promise<void> {
       }
       
       // Verificar se o usuário está buscando seu próprio pedido ou é um admin
-      if (sessionUser.id !== orderDetails.userId && sessionUser.type !== 'admin') {
+      if (sessionUser.id !== orderDetails.order.userId && sessionUser.type !== 'admin') {
         return res.status(403).json({ message: "Não autorizado a ver este pedido" });
       }
       
@@ -553,17 +366,25 @@ export async function registerRoutes(app: Express): Promise<void> {
   app.post('/api/orders', async (req, res) => {
     try {
       const { orderData, items } = req.body;
+      
+      // Validar dados do pedido
       const orderResult = insertOrderSchema.safeParse(orderData);
+      
       if (!orderResult.success) {
         return res.status(400).json(handleZodError(orderResult.error));
       }
+      
+      // Verificar se items é um array válido
       if (!items || !Array.isArray(items) || items.length === 0) {
         return res.status(400).json({ 
           message: "Erro de validação",
           errors: [{ path: "items", message: "Itens do pedido são obrigatórios" }]
         });
       }
-      const newOrder = await storage.createOrder({ ...orderResult.data, items });
+      
+      // Criar o pedido com os dados validados
+      const newOrder = await storage.createOrder(orderResult.data, items);
+      
       return res.status(201).json({
         message: "Pedido criado com sucesso",
         order: newOrder
@@ -576,14 +397,14 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.patch('/api/orders/:id/status', adminMiddleware, async (req, res) => {
     try {
-      const id = req.params.id;
+      const id = parseInt(req.params.id);
       const { status } = req.body;
       
-      if (!id) {
+      if (isNaN(id)) {
         return res.status(400).json({ message: "ID inválido" });
       }
       
-      if (!status || !['recebido', 'em_preparo', 'pronto', 'entregue', 'cancelado'].includes(status)) {
+      if (!status || !['pendente', 'confirmado', 'preparo', 'entrega', 'concluido', 'cancelado'].includes(status)) {
         return res.status(400).json({ message: "Status inválido" });
       }
       
@@ -606,38 +427,37 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rotas de pagamentos ====
   app.post('/api/payments', authMiddleware, async (req, res) => {
     try {
-      const { orderId } = req.body;
-      if (!orderId || typeof orderId !== 'string') {
-        return res.status(400).json({ message: "orderId é obrigatório" });
+      const result = insertOrderSchema.safeParse(req.body);
+      
+      if (!result.success) {
+        return res.status(400).json(handleZodError(result.error));
       }
+      
+      const { orderId } = result.data;
+      
       // Verificar se o pedido existe
       const order = await storage.getOrder(orderId);
+      
       if (!order) {
         return res.status(404).json({ message: "Pedido não encontrado" });
       }
+      
       // Verificar se já existe pagamento para este pedido
       const existingPayment = await storage.getPaymentByOrder(orderId);
+      
       if (existingPayment) {
         return res.status(400).json({ message: "Já existe um pagamento para este pedido" });
       }
+      
       // Criar pagamento
-      const payment = {
-        method: 'pix',
-        status: 'paid' as PaymentStatus,
-        paymentDetails: {},
-        amount: order.totalAmount,
-        orderId: order.id,
-        createdAt: new Date().toISOString(),
-        transactionId: `${Date.now()}-${Math.random().toString(36).slice(2)}`
-      };
-      // Atualizar status do pedido
-      await updateOrder(orderId, {
-        paymentStatus: payment.status,
-        paymentDetails: payment.paymentDetails
-      });
+      const newPayment = await storage.createPayment(result.data);
+      
+      // Atualizar status do pedido para confirmado
+      await storage.updateOrderStatus(orderId, 'confirmado');
+      
       return res.status(201).json({
         message: "Pagamento registrado com sucesso",
-        payment: payment
+        payment: newPayment
       });
     } catch (error) {
       console.error('Erro ao registrar pagamento:', error);
@@ -647,14 +467,18 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/payments/:id', authMiddleware, async (req, res) => {
     try {
-      const id = req.params.id;
-      if (!id) {
+      const id = parseInt(req.params.id);
+      
+      if (isNaN(id)) {
         return res.status(400).json({ message: "ID inválido" });
       }
+      
       const payment = await storage.getPayment(id);
+      
       if (!payment) {
         return res.status(404).json({ message: "Pagamento não encontrado" });
       }
+      
       return res.status(200).json(payment);
     } catch (error) {
       console.error('Erro ao buscar pagamento:', error);
@@ -664,14 +488,18 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.get('/api/orders/:orderId/payment', authMiddleware, async (req, res) => {
     try {
-      const orderId = req.params.orderId;
-      if (!orderId) {
+      const orderId = parseInt(req.params.orderId);
+      
+      if (isNaN(orderId)) {
         return res.status(400).json({ message: "ID de pedido inválido" });
       }
+      
       const payment = await storage.getPaymentByOrder(orderId);
+      
       if (!payment) {
         return res.status(404).json({ message: "Pagamento não encontrado para este pedido" });
       }
+      
       return res.status(200).json(payment);
     } catch (error) {
       console.error('Erro ao buscar pagamento do pedido:', error);
@@ -681,27 +509,33 @@ export async function registerRoutes(app: Express): Promise<void> {
   
   app.patch('/api/payments/:id/status', adminMiddleware, async (req, res) => {
     try {
-      const id = req.params.id;
+      const id = parseInt(req.params.id);
       const { status } = req.body;
-      if (!id) {
+      
+      if (isNaN(id)) {
         return res.status(400).json({ message: "ID inválido" });
       }
-      if (!status || !['pending', 'paid', 'failed', 'refunded'].includes(status)) {
+      
+      if (!status || !['pendente', 'aprovado', 'recusado'].includes(status)) {
         return res.status(400).json({ message: "Status inválido" });
       }
+      
       const updatedPayment = await storage.updatePaymentStatus(id, status);
+      
       if (!updatedPayment) {
         return res.status(404).json({ message: "Pagamento não encontrado" });
       }
-      if (!updatedPayment.orderId) {
-        return res.status(500).json({ message: "Pagamento inconsistente: não possui orderId." });
+      
+      // Se o pagamento for aprovado, atualizar status do pedido para em preparo
+      if (status === 'aprovado') {
+        await storage.updateOrderStatus(updatedPayment.orderId, 'preparo');
       }
-      if (status === 'paid') {
-        await storage.updateOrderStatus(updatedPayment.orderId, 'em_preparo');
-      }
-      if (status === 'failed') {
+      
+      // Se o pagamento for recusado, atualizar status do pedido para cancelado
+      if (status === 'recusado') {
         await storage.updateOrderStatus(updatedPayment.orderId, 'cancelado');
       }
+      
       return res.status(200).json({
         message: "Status do pagamento atualizado com sucesso",
         payment: updatedPayment
@@ -715,15 +549,7 @@ export async function registerRoutes(app: Express): Promise<void> {
   // ==== Rota de dashboard para admin ====
   app.get('/api/admin/dashboard', adminMiddleware, async (req, res) => {
     try {
-      const categories = await storage.getCategories();
-      const products = await storage.getProducts();
-      const orders = await storage.getOrders();
-      const stats = {
-        totalCategories: categories.length,
-        totalProducts: products.length,
-        totalOrders: orders.length,
-        recentOrders: orders.slice(-5)
-      };
+      const stats = await storage.getDashboardStats();
       return res.status(200).json(stats);
     } catch (error) {
       console.error('Erro ao buscar estatísticas do dashboard:', error);
@@ -885,7 +711,6 @@ export async function registerRoutes(app: Express): Promise<void> {
       
       // Salvar dados atualizados
       saveQueueData(queueData);
-      
       
       // Marcador para controlar se o email já foi enviado
       let emailJaEnviado = false;
@@ -1229,11 +1054,11 @@ export async function registerRoutes(app: Express): Promise<void> {
   });
 
   // Rota para verificar o sistema de armazenamento JSON
-  app.get('/api/admin/storage-status', adminMiddleware, async (req, res) => {
+  app.get('/api/admin/storage-status', adminMiddleware, (req, res) => {
     try {
       // Forçar carregamento dos dados para garantir que os arquivos são criados
-      const categories = await menuStorage.loadCategories();
-      const products = await menuStorage.loadProducts();
+      const categories = menuStorage.loadCategories();
+      const products = menuStorage.loadProducts();
       
       // Verificar os arquivos de dados
       const fs = require('fs');
@@ -1324,39 +1149,4 @@ export async function registerRoutes(app: Express): Promise<void> {
       });
     }
   });
-
-  // Função para criar um novo pedido
-  app.post('/api/orders', async (req, res) => {
-    try {
-      const { orderData, items } = req.body;
-      
-      // Validar dados do pedido
-      const orderResult = insertOrderSchema.safeParse(orderData);
-      
-      if (!orderResult.success) {
-        return res.status(400).json(handleZodError(orderResult.error));
-      }
-      
-      // Verificar se items é um array válido
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return res.status(400).json({ 
-          message: "Erro de validação",
-          errors: [{ path: "items", message: "Itens do pedido são obrigatórios" }]
-        });
-      }
-      
-      // Criar o pedido com os dados validados
-      const newOrder = await storage.createOrder({ ...orderResult.data, items });
-      
-      return res.status(201).json({
-        message: "Pedido criado com sucesso",
-        order: newOrder
-      });
-    } catch (error) {
-      console.error('Erro ao criar pedido:', error);
-      return res.status(500).json({ message: "Erro ao criar pedido" });
-    }
-  });
-
-  // Não criar servidor HTTP, pois isso é gerenciado pelo serverless-http
 }

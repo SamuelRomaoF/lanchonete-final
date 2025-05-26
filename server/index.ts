@@ -1,126 +1,88 @@
 import cors from 'cors';
 import express, { NextFunction, type Request, Response } from "express";
-import { createServer, Server } from "http";
-import { setupAuth } from "./auth.js";
-import { registerRoutes } from "./routes.js";
-import { log, serveStatic, setupVite } from "./vite-server.js";
+import { createServer } from "http";
+import path from 'path';
+import { fileURLToPath } from 'url';
+import api from './api';
+import { setupAuth } from "./auth";
+import { supabase } from './lib/supabase';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
+const port = process.env.PORT || 3001;
 
-// Configurar CORS antes de qualquer middleware
+// Configurar CORS e headers de segurança
 app.use(cors({
-  origin: true, // Permitir origens com credenciais
-  credentials: true, // Permitir envio de cookies
+  origin: true,
+  credentials: true
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-
-// Configurar a autenticação e sessão
-setupAuth(app);
-
-app.use((req: Request, res: Response, next: NextFunction) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson: any) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.call(res, bodyJson);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
+// Configurar headers de segurança
+app.use((req, res, next) => {
+  res.setHeader('Content-Security-Policy', "default-src 'self' https: data: 'unsafe-inline' 'unsafe-eval'");
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
   next();
 });
 
-// Função para tentar iniciar o servidor em diferentes portas
-const startServer = async (initialPort: number, maxAttempts: number = 10) => {
-  // Primeiro criar o servidor HTTP
-  const server: Server = createServer(app);
-  let currentPort = initialPort;
-  let attempts = 0;
+app.use(express.json());
 
-  // Registrar rotas na aplicação Express
-  await registerRoutes(app);
+// Configurar rotas da API
+app.use('/api', api);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+// Configurar autenticação
+setupAuth(app);
 
-    res.status(status).json({ message });
-    throw err;
-  });
+// Servir arquivos estáticos do diretório dist
+app.use(express.static(path.join(__dirname, '../client/dist')));
 
-  // importante: apenas configura o vite em desenvolvimento e após
-  // configurar todas as outras rotas para que a rota catch-all
-  // não interfira com as outras rotas
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+// Rota catch-all para o SPA
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'API endpoint não encontrado' });
   }
+  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
+});
 
-  // Função que tenta escutar em uma porta específica
-  const tryListen = (port: number): Promise<void> => {
-    return new Promise((resolve, reject) => {
-      server.listen({
-        port,
-        host: "localhost",
-      })
-      .on('listening', () => {
-        const address = server.address();
-        const actualPort = typeof address === 'object' && address ? address.port : port;
-        log(`Servidor rodando em http://localhost:${actualPort}`);
-        resolve();
-      })
-      .on('error', (error: any) => {
-        if (error.code === 'EADDRINUSE') {
-          // Se a porta estiver em uso, rejeite a promessa para tentar outra porta
-          log(`Porta ${port} está em uso, tentando próxima...`);
-          reject(error);
-        } else {
-          // Para outros erros, apenas rejeite
-          log(error instanceof Error ? error.message : String(error));
-          throw error;
-        }
-      });
-    });
-  };
+// Tratamento de erros
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+  console.error('Erro:', err);
+  res.status(500).json({ error: 'Erro interno do servidor' });
+});
 
-  // Tenta portas sequenciais até encontrar uma disponível
-  while (attempts < maxAttempts) {
-    try {
-      await tryListen(currentPort);
-      // Se chegou aqui, o servidor iniciou com sucesso
-      return;
-    } catch (error: any) {
-      if (error.code === 'EADDRINUSE') {
-        // Tenta a próxima porta
-        currentPort++;
-        attempts++;
-      } else {
-        // Qualquer outro erro, logue e pare de tentar
-        log(error instanceof Error ? error.message : String(error));
-        throw error;
-      }
+// Iniciar servidor
+async function startServer() {
+  try {
+    // Verificar conexão com Supabase
+    const { data, error } = await supabase.from('categories').select('count');
+    if (error) {
+      console.error('❌ Erro ao conectar com Supabase:', error);
+      process.exit(1);
     }
-  }
-};
+    console.log('✅ Conexão com Supabase estabelecida');
 
-startServer(8080);
+    const server = createServer(app);
+
+    server.listen(port, () => {
+      console.log(`Servidor rodando em http://localhost:${port}`);
+    });
+
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        console.log(`Porta ${port} está em uso, tentando próxima...`);
+        server.listen(Number(port) + 1);
+      } else {
+        console.error('Erro ao iniciar servidor:', error);
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao iniciar servidor:', error);
+    process.exit(1);
+  }
+}
+
+startServer();

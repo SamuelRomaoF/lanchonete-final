@@ -1,5 +1,5 @@
+import { useAuth } from "@/context/AuthContext";
 import { Redirect } from "wouter";
-import { useAuth } from "../context/AuthContext.js";
 
 interface AdminRouteProps {
   component: React.ComponentType<any>;

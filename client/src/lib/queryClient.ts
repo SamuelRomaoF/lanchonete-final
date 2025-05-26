@@ -1,56 +1,29 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
-import { fetchFromApi } from "./api.js";
+import { API_BASE_URL } from "./api";
 
 // Função auxiliar para requisições da API que retorna a resposta completa
-export async function apiRequest(
-  method: string,
-  url: string,
-  data?: unknown | undefined,
-): Promise<any> {
-  try {
-    const response = await fetchFromApi(url, {
-      method,
-      ...(data ? { body: JSON.stringify(data) } : {}),
-    });
-    return response;
-  } catch (error) {
-    console.error(`Erro na requisição ${method} ${url}:`, error);
-    throw error;
+const defaultQueryFn: QueryFunction = async ({ queryKey }) => {
+  const endpoint = queryKey[0] as string;
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Erro na requisição: ${response.status}`);
   }
-}
 
-// Função para gerar a função de consulta padrão
-function createQueryFn({ on401 = "throw" }: { on401?: "throw" | "redirect" } = {}) {
-  return (async ({ queryKey }) => {
-    const [endpoint, params] = queryKey;
-    
-    if (typeof endpoint !== "string") {
-      throw new Error(`Expected queryKey[0] to be a string, got: ${typeof endpoint}`);
-    }
+  return response.json();
+};
 
-    try {
-      // Usar a função fetchFromApi para fazer requisições
-      return await fetchFromApi(endpoint, {
-        method: 'GET',
-      });
-    } catch (error) {
-      console.error(`Erro na consulta ${endpoint}:`, error);
-      throw error;
-    }
-  }) as QueryFunction;
-}
-
+// Configuração do cliente de queries
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      queryFn: createQueryFn({ on401: "throw" }),
-      refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
-      retry: false,
-    },
-    mutations: {
-      retry: false,
-    },
-  },
+      queryFn: defaultQueryFn,
+      staleTime: 1000 * 60 * 5, // 5 minutos
+      retry: 1
+    }
+  }
 });

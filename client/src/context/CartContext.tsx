@@ -1,5 +1,5 @@
+import { Product } from '@shared/schema';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { Product } from "../../shared/schema.js";
 
 // Tipo para um item do carrinho
 export interface CartItem {

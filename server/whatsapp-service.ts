@@ -1,6 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
-import { OrderTicket } from './queue-storage.js';
+import { OrderTicket } from './queue-storage';
 
 // Carregar variáveis de ambiente
 dotenv.config();

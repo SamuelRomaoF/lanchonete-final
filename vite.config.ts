@@ -1,43 +1,43 @@
-/// <reference types="vite/client" />
+import react from "@vitejs/plugin-react";
+import path from "path";
+import { fileURLToPath } from 'url';
+import { defineConfig } from "vite";
 
-interface ImportMetaEnv {
-  readonly VITE_SUPABASE_URL: string
-  readonly VITE_SUPABASE_ANON_KEY: string
-  readonly VITE_API_URL: string
-}
+// Obter o equivalente a __dirname em ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
-interface ImportMeta {
-  readonly env: ImportMetaEnv
-}
-
-import react from '@vitejs/plugin-react';
-import * as path from "path";
-import { defineConfig } from 'vite';
-
-// https://vitejs.dev/config/
+// Simples configuração que funciona no Netlify
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, './client/src'),
-      '@shared': path.resolve(__dirname, './shared')
-    }
+      "@": path.resolve(__dirname, "./client/src"),
+      "@shared": path.resolve(__dirname, "./shared"),
+    },
   },
+  root: path.resolve(__dirname, "client"),
   build: {
-    outDir: 'dist',
-    sourcemap: true,
-    rollupOptions: {
-      input: {
-        main: path.resolve(__dirname, 'index.html')
-      }
-    }
+    outDir: path.resolve(__dirname, "client/dist"),
+    emptyOutDir: true,
   },
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        configure: (proxy, options) => {
+          // Atualizar a porta do proxy dinamicamente
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            const serverPort = process.env.SERVER_PORT;
+            if (serverPort) {
+              const target = new URL(options.target as string);
+              target.port = serverPort;
+              options.target = target.toString();
+            }
+          });
+        }
       }
     }
   }

@@ -1,8 +1,5 @@
-import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
-import ProductCard from "../components/ProductCard.js";
-import { Badge } from "../components/ui/badge.js";
-import { Button } from "../components/ui/button.js";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
@@ -10,7 +7,7 @@ import {
     CardFooter,
     CardHeader,
     CardTitle,
-} from "../components/ui/card.js";
+} from "@/components/ui/card";
 import {
     Dialog,
     DialogContent,
@@ -18,11 +15,13 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-} from "../components/ui/dialog.js";
-import { Separator } from "../components/ui/separator.js";
-import { useCart } from "../context/CartContext.js";
-import { OrderTicket, useOrderQueue } from "../context/OrderQueueContext.js";
-import { formatCurrency } from "../lib/utils/formatCurrency.js";
+} from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { useCart } from "@/context/CartContext";
+import { OrderTicket, useOrderQueue } from "@/context/OrderQueueContext";
+import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 
 const statusConfig: Record<string, {color: string, text: string}> = {
   recebido: { color: "bg-slate-200 dark:bg-slate-700", text: "Recebido" },
@@ -74,15 +73,17 @@ const OrderHistory = () => {
     order.items.forEach(item => {
       // Convertemos para o formato esperado pelo carrinho
       const product = {
-        id: String(item.id),
+        id: String(item.id), // Convertendo para string
         name: item.name,
-        description: item.notes || "",
         price: item.price,
-        categoryId: "1",
-        available: true,
+        // Adicionando propriedades obrigatórias para o tipo Product
         isFeatured: false,
         isPromotion: false,
-        imageUrl: ""
+        categoryId: "1", // Valor padrão
+        available: true,
+        // Propriedades opcionais
+        description: item.notes || undefined,
+        imageUrl: undefined
       };
       
       addItem(product, item.quantity);
@@ -139,20 +140,9 @@ const OrderHistory = () => {
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {order.items.slice(0, 3).map((item) => (
-                    <ProductCard
-                      key={item.id}
-                      product={{
-                        id: String(item.id),
-                        name: item.name,
-                        description: item.notes || "",
-                        price: item.price,
-                        categoryId: "1",
-                        available: true,
-                        isFeatured: false,
-                        isPromotion: false,
-                        imageUrl: ""
-                      }}
-                    />
+                    <Badge key={item.id} variant="outline">
+                      {item.quantity}× {item.name}
+                    </Badge>
                   ))}
                   {order.items.length > 3 && (
                     <Badge variant="outline">

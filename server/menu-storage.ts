@@ -1,51 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
-import dotenv from 'dotenv';
-import fs from 'fs';
-import path from 'path';
-import { Category, Product } from '../shared/schema.js';
+import { Category, Product } from '../shared/schema';
 
-// Carregar env do arquivo .env.local na pasta client
-const envPath = path.resolve(process.cwd(), 'client', '.env.local');
-let supabaseUrl: string | undefined;
-let supabaseKey: string | undefined;
-
-try {
-  // Tentar carregar de .env.local primeiro
-  if (fs.existsSync(envPath)) {
-    const envFile = fs.readFileSync(envPath, 'utf8');
-    const envVars = envFile.split('\n')
-      .filter(line => line && !line.startsWith('#'))
-      .reduce((acc, line) => {
-        const match = line.match(/^([^=]+)=(.*)$/);
-        if (match) {
-          const key = match[1].trim();
-          const value = match[2].trim().replace(/^['"]|['"]$/g, '');
-          acc[key] = value;
-        }
-        return acc;
-      }, {} as Record<string, string>);
-    
-    supabaseUrl = envVars.VITE_SUPABASE_URL;
-    supabaseKey = envVars.VITE_SUPABASE_ANON_KEY;
-  }
-  
-  // Se não encontrar em .env.local, tentar dotenv padrão
-  if (!supabaseUrl || !supabaseKey) {
-    dotenv.config();
-    supabaseUrl = process.env.VITE_SUPABASE_URL;
-    supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
-  }
-  
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error('Variáveis de ambiente do Supabase não encontradas');
-  }
-} catch (error) {
-  console.error('Erro ao carregar configurações do Supabase:', error);
-  throw new Error('Erro ao carregar configurações do Supabase');
-}
+// Configuração direta para debug
+const supabaseUrl = 'https://jkisabfnmzrgzazlazcq.supabase.co';
+const supabaseServiceKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpraXNhYmZubXpyZ3phemxhemNxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0ODIyNzExMiwiZXhwIjoyMDYzODAzMTEyfQ.1jOzq5yx3eEiRGHEbYb18-3F9TYtNatUzBVNQri0Uyc';
 
 // Criar cliente Supabase
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // --------- Funções para Categorias ---------
 
@@ -244,7 +205,7 @@ export async function getFeaturedProducts(): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('isFeatured', true)
+      .eq('is_featured', true)
       .order('name');
     
     if (error) {
@@ -265,7 +226,7 @@ export async function getPromotionProducts(): Promise<Product[]> {
     const { data, error } = await supabase
       .from('products')
       .select('*')
-      .eq('isPromotion', true)
+      .eq('is_promotion', true)
       .order('name');
     
     if (error) {
@@ -278,4 +239,42 @@ export async function getPromotionProducts(): Promise<Product[]> {
     console.error('Erro ao buscar produtos em promoção:', error);
     return [];
   }
+}
+
+// Função para fazer upload de imagem
+export async function uploadImage(file: File, path: string) {
+  try {
+    const { data, error } = await supabase.storage
+      .from('menu-images')
+      .upload(path, file);
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Erro ao fazer upload da imagem:', error);
+    throw error;
+  }
+}
+
+// Função para excluir imagem
+export async function deleteImage(path: string) {
+  try {
+    const { error } = await supabase.storage
+      .from('menu-images')
+      .remove([path]);
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Erro ao excluir imagem:', error);
+    throw error;
+  }
+}
+
+// Função para obter URL pública da imagem
+export function getImageUrl(path: string) {
+  const { data } = supabase.storage
+    .from('menu-images')
+    .getPublicUrl(path);
+  
+  return data.publicUrl;
 } 

@@ -1,26 +1,26 @@
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import { createCategory, deleteCategory, getCategories, updateCategory } from "@/lib/api";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Category } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useLocation } from "wouter";
 import { z } from "zod";
-import { Category } from "../../../shared/schema.js";
-import { Button } from "../../components/ui/button.js";
-import { Card, CardContent } from "../../components/ui/card.js";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog.js";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "../../components/ui/form.js";
-import { Input } from "../../components/ui/input.js";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table.js";
-import { Textarea } from "../../components/ui/textarea.js";
-import { useAuth } from "../../context/AuthContext.js";
-import { useToast } from "../../hooks/use-toast.js";
-import { createCategory, deleteCategory, getCategories, updateCategory } from "../../lib/api.js";
 
 // Esquema para o formulário de categoria
 const categoryFormSchema = z.object({
   name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
-  description: z.string().optional(),
+  description: z.string().optional()
 });
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
@@ -55,19 +55,14 @@ const CategoryManagement = () => {
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
       name: "",
-      description: "",
+      description: ""
     },
   });
   
   // Mutation para criar categoria
   const createCategoryMutation = useMutation({
-    mutationFn: async (data: CategoryFormValues) => {
-      const newCategory = await createCategory({
-        name: data.name,
-        description: data.description || "",
-        imageUrl: ""
-      });
-      return newCategory;
+    mutationFn: (data: CategoryFormValues) => {
+      return createCategory(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -156,13 +151,12 @@ const CategoryManagement = () => {
   
   // Filtragem de categorias
   const filteredCategories = categories?.filter((category) => 
-    category.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (category.description && category.description.toLowerCase().includes(searchTerm.toLowerCase()))
+    category.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
   
   // Funções de gerenciamento de categorias
   const handleCreateCategory = (data: CategoryFormValues) => {
-    createCategoryMutation.mutate(data);
+    createCategoryMutation.mutate({ name: data.name, description: data.description });
   };
   
   const handleEditCategory = (data: CategoryFormValues) => {
@@ -188,7 +182,7 @@ const CategoryManagement = () => {
   const openCreateDialog = () => {
     form.reset({
       name: "",
-      description: "",
+      description: ""
     });
     setIsCreateDialogOpen(true);
   };
@@ -196,7 +190,7 @@ const CategoryManagement = () => {
   const openEditDialog = (category: Category) => {
     form.reset({
       name: category.name,
-      description: category.description || "",
+      description: category.description || ""
     });
     setCurrentCategory(category);
     setIsEditDialogOpen(true);
@@ -212,7 +206,7 @@ const CategoryManagement = () => {
     if (currentCategory && isEditDialogOpen) {
       form.reset({
         name: currentCategory.name,
-        description: currentCategory.description || "",
+        description: currentCategory.description || ""
       });
       setCurrentCategory(currentCategory);
       setIsEditDialogOpen(true);
@@ -277,7 +271,6 @@ const CategoryManagement = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Descrição</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -291,7 +284,6 @@ const CategoryManagement = () => {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{category.description}</TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end space-x-2">
                       <Button 
@@ -358,13 +350,10 @@ const CategoryManagement = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descrição</FormLabel>
+                    <FormLabel>Descrição (opcional)</FormLabel>
                     <FormControl>
                       <Textarea {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Uma breve descrição da categoria
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -418,13 +407,10 @@ const CategoryManagement = () => {
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descrição</FormLabel>
+                    <FormLabel>Descrição (opcional)</FormLabel>
                     <FormControl>
                       <Textarea {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Uma breve descrição da categoria
-                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -458,9 +444,6 @@ const CategoryManagement = () => {
           </DialogHeader>
           <div className="py-4">
             <p className="font-medium">{currentCategory?.name}</p>
-            {currentCategory?.description && (
-              <p className="text-sm text-muted-foreground mt-1">{currentCategory.description}</p>
-            )}
           </div>
           <DialogFooter>
             <Button 

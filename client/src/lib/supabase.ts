@@ -23,7 +23,7 @@ export const supabase = createClient(supabaseUrl, supabaseKey, {
   },
   db: {
     schema: 'public',
-  },
+  }
 });
 
 // Log para verificar se o cliente foi inicializado corretamente

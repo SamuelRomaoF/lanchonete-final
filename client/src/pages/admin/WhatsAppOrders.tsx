@@ -1,14 +1,14 @@
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/context/AuthContext";
+import { useOrderQueue } from "@/context/OrderQueueContext";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils/formatCurrency";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { Badge } from "../../components/ui/badge.js";
-import { Button } from "../../components/ui/button.js";
-import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card.js";
-import { Input } from "../../components/ui/input.js";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs.js";
-import { useAuth } from "../../context/AuthContext.js";
-import { useOrderQueue } from "../../context/OrderQueueContext.js";
-import { useToast } from "../../hooks/use-toast.js";
-import { formatCurrency } from "../../lib/utils/formatCurrency.js";
 
 interface PendingOrder {
   id: string;
@@ -144,7 +144,7 @@ const WhatsAppOrders = () => {
     try {
       // Converter itens para o formato esperado pelo addOrder
       const orderItems = order.parsed.items.map((item, index) => ({
-        id: String(index + 1), // Convertendo para string
+        id: index + 1, // Gerar IDs sequenciais para os itens
         name: item.name,
         quantity: item.quantity,
         price: item.price

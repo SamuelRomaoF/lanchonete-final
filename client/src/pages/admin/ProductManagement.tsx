@@ -1,46 +1,46 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Image, Loader2, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { useLocation } from "wouter";
-import { z } from "zod";
-import { Category, Product } from "../../../shared/schema.js";
-import { Avatar, AvatarFallback, AvatarImage } from "../../components/ui/avatar.js";
-import { Badge } from "../../components/ui/badge.js";
-import { Button } from "../../components/ui/button.js";
-import { Card, CardContent } from "../../components/ui/card.js";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "../../components/ui/dialog.js";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "../../components/ui/form.js";
-import { Input } from "../../components/ui/input.js";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../../components/ui/select.js";
-import { Switch } from "../../components/ui/switch.js";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../../components/ui/table.js";
-import { Textarea } from "../../components/ui/textarea.js";
-import { useAuth } from "../../context/AuthContext.js";
-import { useToast } from "../../hooks/use-toast.js";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 import {
     createProduct,
     deleteProduct,
     getCategories,
     getProducts,
     updateProduct
-} from "../../lib/api.js";
-import { deleteProductImage, initializeStorage, uploadProductImage } from "../../lib/storage.js";
-import { formatCurrency } from "../../lib/utils/formatCurrency.js";
+} from "@/lib/api";
+import { deleteProductImage, initializeStorage, uploadProductImage } from "@/lib/storage";
+import { formatCurrency } from "@/lib/utils/formatCurrency";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Category, Product } from "@shared/schema";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Image, Loader2, Pencil, Plus, Search, Trash2, Upload } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { useLocation } from "wouter";
+import { z } from "zod";
 
 // Esquema para o formulário de produto
 const productFormSchema = z.object({
   name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
   description: z.string().optional(),
   price: z.coerce.number().min(0.01, "Preço deve ser maior que zero"),
-  oldPrice: z.coerce.number().optional(),
-  imageUrl: z.string().optional(),
-  categoryId: z.string({
+  old_price: z.coerce.number().optional(),
+  image_url: z.string().optional(),
+  category_id: z.union([z.string(), z.coerce.number()], {
     required_error: "Categoria é obrigatória",
   }),
-  isFeatured: z.boolean().default(false),
-  isPromotion: z.boolean().default(false),
+  is_featured: z.boolean().default(false),
+  is_promotion: z.boolean().default(false),
   available: z.boolean().default(true),
 });
 
@@ -96,11 +96,11 @@ const ProductManagement = () => {
       name: "",
       description: "",
       price: 0,
-      oldPrice: undefined,
-      imageUrl: "",
-      categoryId: "",
-      isFeatured: false,
-      isPromotion: false,
+      old_price: undefined,
+      image_url: "",
+      category_id: undefined,
+      is_featured: false,
+      is_promotion: false,
       available: true,
     },
   });
@@ -112,17 +112,17 @@ const ProductManagement = () => {
         name: currentProduct.name,
         description: currentProduct.description || "",
         price: currentProduct.price,
-        oldPrice: currentProduct.oldPrice || undefined,
-        imageUrl: currentProduct.imageUrl || "",
-        categoryId: currentProduct.categoryId || "",
-        isFeatured: currentProduct.isFeatured || false,
-        isPromotion: currentProduct.isPromotion || false,
+        old_price: currentProduct.old_price || undefined,
+        image_url: currentProduct.image_url || "",
+        category_id: currentProduct.category_id || undefined,
+        is_featured: currentProduct.is_featured || false,
+        is_promotion: currentProduct.is_promotion || false,
         available: currentProduct.available !== false,
       });
       
       // Atualizar preview de imagem ao editar
-      if (currentProduct.imageUrl) {
-        setPreviewUrl(currentProduct.imageUrl);
+      if (currentProduct.image_url) {
+        setPreviewUrl(currentProduct.image_url);
       } else {
         setPreviewUrl(null);
       }
@@ -183,17 +183,23 @@ const ProductManagement = () => {
       // Se tiver uma imagem selecionada, fazer upload
       if (selectedImage) {
         const imageUrl = await handleImageUpload(selectedImage);
-        data.imageUrl = imageUrl;
+        data.image_url = imageUrl;
       }
       
-      return createProduct({
-        ...data,
-        imageUrl: data.imageUrl || "",
-        description: data.description || "",
-        available: true,
-        isFeatured: false,
-        isPromotion: false
-      });
+      // Converter para camelCase antes de enviar
+      const productData = {
+        name: data.name,
+        description: data.description || '',
+        price: data.price,
+        oldPrice: data.old_price,
+        imageUrl: data.image_url || '',
+        categoryId: data.category_id?.toString(),
+        isFeatured: data.is_featured,
+        isPromotion: data.is_promotion,
+        available: data.available
+      };
+      
+      return createProduct(productData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -218,27 +224,36 @@ const ProductManagement = () => {
   
   // Mutation para atualizar produto
   const updateProductMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: ProductFormValues }) => {
+    mutationFn: async ({ id, data }: { id: number | string; data: ProductFormValues }) => {
       // Se tiver uma imagem selecionada, fazer upload
       if (selectedImage) {
         // Se já existia uma imagem, remover do storage
-        if (currentProduct?.imageUrl && currentProduct.imageUrl !== data.imageUrl) {
+        if (currentProduct?.image_url && currentProduct.image_url !== data.image_url) {
           try {
-            await deleteProductImage(currentProduct.imageUrl);
+            await deleteProductImage(currentProduct.image_url);
           } catch (error) {
             console.error("Erro ao excluir imagem anterior:", error);
           }
         }
         
         const imageUrl = await handleImageUpload(selectedImage);
-        data.imageUrl = imageUrl;
+        data.image_url = imageUrl;
       }
       
-      return updateProduct(id, {
-        ...data,
-        categoryId: data.categoryId,
-        description: data.description || ''
-      });
+      // Converter os dados para o formato correto antes de enviar
+      const productData: Partial<Product> = {
+        name: data.name,
+        description: data.description || '',
+        price: data.price,
+        old_price: data.old_price,
+        category_id: data.category_id?.toString(),
+        available: data.available,
+        is_featured: data.is_featured,
+        is_promotion: data.is_promotion,
+        image_url: data.image_url || ''
+      };
+      
+      return updateProduct(id.toString(), productData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -265,9 +280,9 @@ const ProductManagement = () => {
   const deleteProductMutation = useMutation({
     mutationFn: async (id: number | string) => {
       // Se o produto tem imagem, remover do storage
-      if (currentProduct?.imageUrl) {
+      if (currentProduct?.image_url) {
         try {
-          await deleteProductImage(currentProduct.imageUrl);
+          await deleteProductImage(currentProduct.image_url);
         } catch (error) {
           console.error("Erro ao excluir imagem do produto:", error);
         }
@@ -298,8 +313,8 @@ const ProductManagement = () => {
   
   // Mutation para alternar disponibilidade do produto
   const toggleAvailabilityMutation = useMutation({
-    mutationFn: ({ id, available }: { id: string; available: boolean }) => {
-      return updateProduct(id, { available });
+    mutationFn: ({ id, available }: { id: number | string; available: boolean }) => {
+      return updateProduct(id.toString(), { available });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -331,7 +346,7 @@ const ProductManagement = () => {
   
   const handleEditProduct = (data: ProductFormValues) => {
     if (currentProduct) {
-      updateProductMutation.mutate({ id: currentProduct.id.toString(), data });
+      updateProductMutation.mutate({ id: currentProduct.id, data });
     }
   };
   
@@ -344,7 +359,7 @@ const ProductManagement = () => {
   // Função para alternar disponibilidade
   const handleToggleAvailability = (product: Product) => {
     toggleAvailabilityMutation.mutate({
-      id: product.id.toString(),
+      id: product.id,
       available: !product.available
     });
   };
@@ -355,11 +370,11 @@ const ProductManagement = () => {
       name: "",
       description: "",
       price: 0,
-      oldPrice: undefined,
-      imageUrl: "",
-      categoryId: "",
-      isFeatured: false,
-      isPromotion: false,
+      old_price: undefined,
+      image_url: "",
+      category_id: undefined,
+      is_featured: false,
+      is_promotion: false,
       available: true,
     });
     setSelectedImage(null);
@@ -377,9 +392,9 @@ const ProductManagement = () => {
     setIsDeleteDialogOpen(true);
   };
   
-  const getCategoryName = (categoryId?: string | number) => {
-    if (!categoryId || !categories) return "Sem categoria";
-    const category = categories.find((cat) => cat.id === categoryId);
+  const getCategoryName = (category_id?: string | number) => {
+    if (!category_id || !categories) return "Sem categoria";
+    const category = categories.find((cat) => cat.id === category_id);
     return category ? category.name : "Categoria não encontrada";
   };
   
@@ -429,7 +444,7 @@ const ProductManagement = () => {
           <div className="space-y-6">
                 <FormField
                   control={form.control}
-                  name="categoryId"
+                  name="category_id"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Categoria*</FormLabel>
@@ -491,7 +506,7 @@ const ProductManagement = () => {
                 
                 <FormField
                   control={form.control}
-                  name="oldPrice"
+                  name="old_price"
                   render={({ field }) => (
                     <FormItem>
                     <FormLabel>Preço Antigo</FormLabel>
@@ -527,7 +542,7 @@ const ProductManagement = () => {
         <div className="space-y-4">
               <FormField
                 control={form.control}
-                name="imageUrl"
+                name="image_url"
                 render={({ field }) => (
               <FormItem className="flex flex-col space-y-3">
                 <FormLabel>Imagem do Produto</FormLabel>
@@ -601,7 +616,7 @@ const ProductManagement = () => {
                 
                 <FormField
                   control={form.control}
-            name="isFeatured"
+            name="is_featured"
                   render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md shadow-sm">
                 <div>
@@ -620,7 +635,7 @@ const ProductManagement = () => {
                 
                 <FormField
                   control={form.control}
-            name="isPromotion"
+            name="is_promotion"
                   render={({ field }) => (
               <FormItem className="flex flex-row items-center justify-between p-3 border rounded-md shadow-sm">
                 <div>
@@ -713,8 +728,8 @@ const ProductManagement = () => {
                     <TableRow key={product.id.toString()}>
                       <TableCell>
                         <Avatar className="w-12 h-12">
-                          {product.imageUrl ? (
-                            <AvatarImage src={product.imageUrl} alt={product.name} />
+                          {product.image_url ? (
+                            <AvatarImage src={product.image_url} alt={product.name} />
                           ) : null}
                           <AvatarFallback className="bg-muted">
                             {product.name.substring(0, 2).toUpperCase()}
@@ -722,12 +737,12 @@ const ProductManagement = () => {
                         </Avatar>
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{getCategoryName(product.categoryId)}</TableCell>
+                      <TableCell>{getCategoryName(product.category_id)}</TableCell>
                       <TableCell>
                         {formatCurrency(product.price)}
-                        {product.oldPrice && (
+                        {product.old_price && (
                           <span className="ml-2 text-muted-foreground line-through text-xs">
-                            {formatCurrency(product.oldPrice)}
+                            {formatCurrency(product.old_price)}
                           </span>
                         )}
                       </TableCell>
@@ -742,12 +757,12 @@ const ProductManagement = () => {
                               Indisponível
                             </Badge>
                           )}
-                          {product.isFeatured && (
+                          {product.is_featured && (
                             <Badge variant="outline" className="bg-blue-50 border-blue-200 text-blue-700">
                               Destaque
                             </Badge>
                           )}
-                          {product.isPromotion && (
+                          {product.is_promotion && (
                             <Badge variant="outline" className="bg-amber-50 border-amber-200 text-amber-700">
                               Promoção
                             </Badge>

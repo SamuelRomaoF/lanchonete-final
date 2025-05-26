@@ -4,135 +4,172 @@ import { z } from "zod";
 export type UserType = "cliente" | "admin";
 
 // Enum para status de pedidos
-export type OrderStatus = "recebido" | "em_preparo" | "pronto" | "entregue" | "cancelado";
+export type OrderStatus = "pending" | "recebido" | "em_preparo" | "pronto" | "entregue" | "cancelado";
 
 // Enum para métodos de pagamento
 export type PaymentMethod = "pix" | "cartao" | "dinheiro";
 
 // Enum para status de pagamento
-export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+export type PaymentStatus = "pending" | "paid" | "cancelled";
 
-// Tipos de usuário
+// Tipos de entidades
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  password: string;
+  address?: string;
+  phone?: string;
+  type: UserType;
+  createdAt: Date;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  old_price?: number;
+  oldPrice?: number;
+  category_id?: string;
+  categoryId?: string;
+  available: boolean;
+  is_featured: boolean;
+  isFeatured?: boolean;
+  is_promotion: boolean;
+  isPromotion?: boolean;
+  image_url?: string;
+  imageUrl?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+// Item de pedido
+export interface OrderItem {
+  id: number;
+  name: string;
+  quantity: number;
+  price: number;
+  notes?: string;
+}
+
+// Cliente do pedido
+export interface Customer {
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+}
+
+// Detalhes de pagamento
+export interface PaymentDetails {
+  paidAt?: string;
+  transactionId?: string;
+  pixKey?: string;
+  qrCodeData?: string;
+  changeAmount?: number;
+}
+
+// Pedido
+export interface Order {
+  id: string;
+  customer_name: string;
+  items: OrderItem[];
+  total_amount: number;
+  status: OrderStatus;
+  ticket_number: string;
+  created_at: string;
+}
+
+// Schemas de validação com Zod
 export const userSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string().email(),
-  password: z.string().optional(),
+  id: z.number().optional(),
+  name: z.string().min(3, "Nome deve ter pelo menos 3 caracteres"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(6, "Senha deve ter pelo menos 6 caracteres"),
+  address: z.string().optional(),
+  phone: z.string().optional(),
   type: z.enum(["cliente", "admin"]).default("cliente"),
-  address: z.string().optional().default(""),
-  phone: z.string().optional().default(""),
-  created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional(),
-  createdAt: z.string().datetime().optional(),
-  updatedAt: z.string().datetime().optional()
+  createdAt: z.date().optional()
 });
 
-export type User = z.infer<typeof userSchema>;
-export type UserProfile = Omit<User, "password">;
-export type InsertUser = Omit<User, "id" | "created_at" | "updated_at" | "createdAt" | "updatedAt">;
-
-// Tipos de categoria
 export const categorySchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string().optional().default(""),
-  imageUrl: z.string().optional().default(""),
-  created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional(),
-  createdAt: z.string().datetime().optional(),
-  updatedAt: z.string().datetime().optional()
+  id: z.string().optional(),
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  description: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional()
 });
 
-export type Category = z.infer<typeof categorySchema>;
-export const insertCategorySchema = categorySchema.omit({ id: true });
-export type InsertCategory = z.infer<typeof insertCategorySchema>;
-
-// Tipos de produto
 export const productSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  description: z.string().optional().default(""),
-  price: z.number(),
-  imageUrl: z.string().optional().default(""),
+  id: z.string().optional(),
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  description: z.string().optional(),
+  price: z.number().positive("Preço deve ser um valor positivo"),
+  old_price: z.number().positive().optional(),
+  oldPrice: z.number().positive().optional(),
+  category_id: z.string(),
   categoryId: z.string(),
   available: z.boolean().default(true),
-  isFeatured: z.boolean().default(false),
-  isPromotion: z.boolean().default(false),
-  oldPrice: z.number().optional(),
-  created_at: z.string().datetime().optional(),
-  updated_at: z.string().datetime().optional(),
-  createdAt: z.string().datetime().optional(),
-  updatedAt: z.string().datetime().optional()
+  is_featured: z.boolean().default(false),
+  isFeatured: z.boolean().optional(),
+  is_promotion: z.boolean().default(false),
+  isPromotion: z.boolean().optional(),
+  image_url: z.string().url().optional(),
+  imageUrl: z.string().url().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional()
 });
 
-export type Product = z.infer<typeof productSchema>;
-export const insertProductSchema = productSchema.omit({ id: true });
-export type InsertProduct = z.infer<typeof insertProductSchema>;
-
-// Tipos de item do pedido
 export const orderItemSchema = z.object({
-  id: z.string(),
+  id: z.number(),
   name: z.string(),
-  price: z.number(),
-  quantity: z.number().default(1),
-  notes: z.string().optional().default("")
+  quantity: z.number().int().positive("Quantidade deve ser um valor positivo"),
+  price: z.number().positive("Preço deve ser um valor positivo"),
+  notes: z.string().optional()
 });
 
-export type OrderItem = z.infer<typeof orderItemSchema>;
-export const insertOrderItemSchema = orderItemSchema.omit({ id: true });
-export type InsertOrderItem = z.infer<typeof insertOrderItemSchema>;
-
-// Tipos de pedido
-export const orderSchema = z.object({
-  id: z.string(),
-  ticketNumber: z.string(),
-  status: z.enum(["recebido", "em_preparo", "pronto", "entregue", "cancelado"]).default("recebido"),
-  items: z.array(orderItemSchema),
-  totalAmount: z.number(),
-  customer: z.object({
-    name: z.string(),
-    email: z.string().email(),
-    phone: z.string().optional().default(""),
-    address: z.string().optional().default("")
-  }),
-  userId: z.string().optional().default(""),
-  notes: z.string().optional().default(""),
-  paymentMethod: z.enum(["pix", "cartao", "dinheiro"]).default("pix"),
-  paymentStatus: z.enum(["pending", "paid", "failed", "refunded"]).default("pending"),
-  created_at: z.string().datetime(),
-  updated_at: z.string().datetime().optional(),
-  createdAt: z.string().datetime().optional(),
-  updatedAt: z.string().datetime().optional(),
-  paymentDetails: z.record(z.any()).optional().default({})
+export const customerSchema = z.object({
+  name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  email: z.string().email("Email inválido").optional(),
+  phone: z.string().optional(),
+  address: z.string().optional()
 });
 
-export type Order = z.infer<typeof orderSchema>;
-export const insertOrderSchema = orderSchema.omit({ id: true, ticketNumber: true });
-export type InsertOrder = z.infer<typeof insertOrderSchema>;
-
-// Tipos de pagamento
-export const paymentSchema = z.object({
-  id: z.string(),
-  status: z.enum(["pending", "paid", "failed", "refunded"]).default("pending"),
-  method: z.enum(["pix", "cartao", "dinheiro"]).default("pix"),
-  amount: z.number(),
-  orderId: z.string(),
+export const paymentDetailsSchema = z.object({
+  paidAt: z.string().optional(),
   transactionId: z.string().optional(),
-  paymentDetails: z.record(z.any()).optional().default({}),
-  createdAt: z.string().datetime().optional()
+  pixKey: z.string().optional(),
+  qrCodeData: z.string().optional(),
+  changeAmount: z.number().optional()
 });
 
-export type Payment = z.infer<typeof paymentSchema>;
-export const insertPaymentSchema = paymentSchema.omit({ id: true });
-export type InsertPayment = z.infer<typeof insertPaymentSchema>;
-
-// Tipos de resposta da API
-export const apiResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string().optional(),
-  data: z.any().optional(),
-  error: z.string().optional(),
-  orders: z.array(orderSchema).optional()
+export const orderSchema = z.object({
+  id: z.string().optional(),
+  customer_name: z.string().min(2, "Nome deve ter pelo menos 2 caracteres"),
+  items: z.array(orderItemSchema),
+  total_amount: z.number().positive("Total deve ser um valor positivo"),
+  status: z.enum(["pending", "recebido", "em_preparo", "pronto", "entregue", "cancelado"]).default("pending"),
+  ticket_number: z.string(),
+  created_at: z.string().optional()
 });
 
-export type ApiResponse = z.infer<typeof apiResponseSchema>;
+// Schemas para inserção
+export const insertUserSchema = userSchema.omit({ id: true, createdAt: true });
+export const insertCategorySchema = categorySchema.omit({ id: true, created_at: true, updated_at: true });
+export const insertProductSchema = productSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOrderSchema = orderSchema.omit({ id: true, created_at: true });
+
+// Tipos de Inserção
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type InsertCategory = z.infer<typeof insertCategorySchema>;
+export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type InsertOrder = z.infer<typeof insertOrderSchema>;

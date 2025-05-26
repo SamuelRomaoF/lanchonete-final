@@ -1,20 +1,20 @@
 // Script para criar um usuário administrador no Supabase
 // Execute com: node create-admin-user.js
 
-import { createClient } from '@supabase/supabase-js';
-import readline from 'readline';
+const { createClient } = require('@supabase/supabase-js');
+const readline = require('readline');
 
-// Interface para leitura de input do usuário
+// Criar interface para leitura de input do usuário
 const rl = readline.createInterface({
   input: process.stdin,
   output: process.stdout
 });
 
-// Perguntar ao usuário
-async function pergunta(questao) {
+// Função para fazer perguntas ao usuário
+function pergunta(query) {
   return new Promise((resolve) => {
-    rl.question(questao, (resposta) => {
-      resolve(resposta);
+    rl.question(query, (answer) => {
+      resolve(answer);
     });
   });
 }

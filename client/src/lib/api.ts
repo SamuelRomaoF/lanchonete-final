@@ -1,74 +1,267 @@
-import { ApiResponse, Category, Order, OrderStatus, PaymentMethod, PaymentStatus, Product } from "@shared/schema";
-import { supabase } from './supabase.js';
+import { Category, Order, Product } from '@shared/schema';
+import { supabase } from './supabase';
 
-// API URL base, será substituída em produção pelo Netlify
-const API_BASE_URL = import.meta.env.PROD 
-  ? '/.netlify/functions'
-  : '/api';
+// Chaves para localStorage
+export const ORDERS_STORAGE_KEY = 'falecomigo-admin-orders';
+export const STATS_STORAGE_KEY = 'falecomigo-admin-stats';
+
+// API URL base
+export const API_BASE_URL = '';
 
 // Função auxiliar para fazer requisições à API
-export async function fetchFromApi<T>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  console.log('Fazendo requisição para:', url);
+async function fetchApi(endpoint: string, options: RequestInit = {}) {
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
 
+  if (!response.ok) {
+    throw new Error(`Erro na requisição: ${response.status}`);
+  }
+
+  return response.json();
+}
+
+// Funções de localStorage
+export function getOrdersFromLocalStorage(): any[] {
   try {
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: `HTTP error! status: ${response.status}` }));
-      throw new Error(errorData?.error || `HTTP error! status: ${response.status}`);
+    const storedOrders = localStorage.getItem(ORDERS_STORAGE_KEY);
+    if (storedOrders) {
+      return JSON.parse(storedOrders);
     }
-
-    const data = await response.json();
-    return (data.data || data) as T;
   } catch (error) {
-    console.error(`Erro ao chamar API ${endpoint}:`, error);
+    console.error('Erro ao recuperar pedidos do localStorage:', error);
+  }
+  return [];
+}
+
+export function saveOrdersToLocalStorage(orders: any[]) {
+  try {
+    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+  } catch (error) {
+    console.error('Erro ao salvar pedidos no localStorage:', error);
+  }
+}
+
+export function mergeOrders(apiOrders: any[], localOrders: any[]): any[] {
+  if (apiOrders.length === 0) return localOrders;
+  if (localOrders.length === 0) return apiOrders;
+  
+  const apiOrderMap = new Map(apiOrders.map(order => [order.id, order]));
+  
+  for (const localOrder of localOrders) {
+    if (!apiOrderMap.has(localOrder.id)) {
+      apiOrders.push(localOrder);
+    }
+  }
+  
+  return apiOrders.sort((a, b) => {
+    const dateA = new Date(a.created_at).getTime();
+    const dateB = new Date(b.created_at).getTime();
+    return dateB - dateA;
+  });
+}
+
+// Funções da API
+export async function getCategories(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .order('name');
+
+  if (error) {
+    console.error('Erro ao buscar categorias:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getFeaturedProducts(): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('is_featured', true)
+    .eq('available', true)
+    .order('name');
+
+  if (error) {
+    console.error('Erro ao buscar produtos em destaque:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getPromotionProducts(): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('is_promotion', true)
+    .eq('available', true)
+    .order('name');
+
+  if (error) {
+    console.error('Erro ao buscar produtos em promoção:', error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('category_id', categoryId)
+    .eq('available', true)
+    .order('name');
+
+  if (error) {
+    console.error(`Erro ao buscar produtos da categoria ${categoryId}:`, error);
+    throw error;
+  }
+
+  return data || [];
+}
+
+export async function checkQueueReset() {
+  return fetchApi('/api/queue/check-reset');
+}
+
+export async function syncQueue(data: any) {
+  return fetchApi('/api/queue/sync', {
+    method: 'POST',
+    body: JSON.stringify(data)
+  });
+}
+
+export async function createOrder(orderData: any) {
+  return fetchApi('/api/orders', {
+    method: 'POST',
+    body: JSON.stringify(orderData)
+  });
+}
+
+export async function updateOrderStatus(orderId: string, status: string) {
+  const { error } = await supabase
+    .from('orders')
+    .update({ status })
+    .eq('id', orderId);
+
+  if (error) {
+    console.error(`Erro ao atualizar status do pedido ${orderId}:`, error);
     throw error;
   }
 }
 
-// Categorias
-export async function getCategories(): Promise<Category[]> {
-  const response = await fetchFromApi<ApiResponse>('/categories');
-  return (response.data || []) as Category[];
+// Funções auxiliares
+export async function getOrders(): Promise<Order[]> {
+  try {
+    const localOrders = getOrdersFromLocalStorage();
+    
+    const { data: apiOrders, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Erro ao buscar pedidos:', error);
+      return localOrders;
+    }
+
+    const mergedOrders = mergeOrders(apiOrders || [], localOrders);
+    
+    if (mergedOrders.length > 0) {
+      saveOrdersToLocalStorage(mergedOrders);
+    }
+    
+    return mergedOrders;
+  } catch (error) {
+    console.error('Erro ao buscar pedidos:', error);
+    return getOrdersFromLocalStorage();
+  }
 }
 
+// Categorias
 export async function getCategoryById(id: string): Promise<Category | null> {
-  const response = await fetchFromApi<ApiResponse>(`/categories/${id}`);
-  return (response.data || null) as Category | null;
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error(`Erro ao buscar categoria ${id}:`, error);
+    throw error;
+  }
+
+  return data;
 }
 
 export async function createCategory(category: Omit<Category, 'id'>): Promise<Category> {
-  const response = await fetchFromApi<ApiResponse>('/categories', {
-    method: 'POST',
-    body: JSON.stringify(category),
-  });
-  return response.data as Category;
+  console.log('Tentando criar categoria:', category);
+
+  const { data, error } = await supabase
+    .from('categories')
+    .insert([{
+      name: category.name,
+      description: category.description || null
+    }])
+    .select('*')
+    .single();
+
+  if (error) {
+    console.error('Erro ao criar categoria:', error);
+    throw error;
+  }
+
+  console.log('Categoria criada com sucesso:', data);
+  return data;
 }
 
 export async function updateCategory(id: string, category: Partial<Category>): Promise<Category> {
   console.log(`Atualizando categoria ${id}:`, category);
-  const response = await fetchFromApi<ApiResponse>(`/categories/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(category),
-  });
-  return response.data as Category;
+
+  const { data, error } = await supabase
+    .from('categories')
+    .update(category)
+    .eq('id', id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error(`Erro ao atualizar categoria ${id}:`, error);
+    throw error;
+  }
+
+  console.log('Categoria atualizada com sucesso:', data);
+  return data;
 }
 
 export async function deleteCategory(id: string): Promise<void> {
   console.log(`Tentando excluir categoria com ID: ${id}`);
-  await fetchFromApi(`/categories/${id}`, {
-    method: 'DELETE',
-  });
+
+  try {
+    // Método direto - sem verificações extras
+    const { error } = await supabase
+      .from('categories')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error(`Erro ao excluir categoria ${id}:`, error);
+      throw error;
+    }
+
+    console.log(`Categoria ${id} excluída com sucesso`);
+  } catch (error) {
+    console.error(`Erro ao excluir categoria ${id}:`, error);
+    throw error;
+  }
 }
 
 // Produtos
@@ -83,88 +276,7 @@ export async function getProducts(): Promise<Product[]> {
     throw error;
   }
 
-  return data?.map(product => ({
-    ...product,
-    id: String(product.id),
-    categoryId: String(product.categoryId),
-    available: product.available ?? true,
-    isFeatured: product.isFeatured ?? false,
-    isPromotion: product.isPromotion ?? false,
-    description: product.description || '',
-    imageUrl: product.imageUrl || ''
-  })) || [];
-}
-
-export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('categoryId', categoryId)
-    .order('name');
-
-  if (error) {
-    console.error(`Erro ao buscar produtos da categoria ${categoryId}:`, error);
-    throw error;
-  }
-
-  return data?.map(product => ({
-    ...product,
-    id: String(product.id),
-    categoryId: String(product.categoryId),
-    available: product.available ?? true,
-    isFeatured: product.isFeatured ?? false,
-    isPromotion: product.isPromotion ?? false,
-    description: product.description || '',
-    imageUrl: product.imageUrl || ''
-  })) || [];
-}
-
-export async function getFeaturedProducts(): Promise<Product[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('isFeatured', true)
-    .order('name');
-
-  if (error) {
-    console.error('Erro ao buscar produtos em destaque:', error);
-    throw error;
-  }
-
-  return data?.map(product => ({
-    ...product,
-    id: String(product.id),
-    categoryId: String(product.categoryId),
-    available: product.available ?? true,
-    isFeatured: true,
-    isPromotion: product.isPromotion ?? false,
-    description: product.description || '',
-    imageUrl: product.imageUrl || ''
-  })) || [];
-}
-
-export async function getPromotionProducts(): Promise<Product[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('isPromotion', true)
-    .order('name');
-
-  if (error) {
-    console.error('Erro ao buscar produtos em promoção:', error);
-    throw error;
-  }
-
-  return data?.map(product => ({
-    ...product,
-    id: String(product.id),
-    categoryId: String(product.categoryId),
-    available: product.available ?? true,
-    isFeatured: product.isFeatured ?? false,
-    isPromotion: true,
-    description: product.description || '',
-    imageUrl: product.imageUrl || ''
-  })) || [];
+  return data || [];
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
@@ -179,24 +291,28 @@ export async function getProductById(id: string): Promise<Product | null> {
     throw error;
   }
 
-  return data ? {
-    ...data,
-    id: String(data.id),
-    categoryId: String(data.categoryId),
-    available: data.available ?? true,
-    isFeatured: data.isFeatured ?? false,
-    isPromotion: data.isPromotion ?? false,
-    description: data.description || '',
-    imageUrl: data.imageUrl || ''
-  } : null;
+  return data;
 }
 
 export async function createProduct(product: Omit<Product, 'id'>): Promise<Product> {
   console.log('Tentando criar produto:', product);
 
+  // Converter para camelCase antes de enviar
+  const productData = {
+    name: product.name,
+    description: product.description || '',
+    price: product.price,
+    oldPrice: product.old_price,
+    imageUrl: product.image_url || '',
+    categoryId: product.category_id,
+    isFeatured: product.is_featured,
+    isPromotion: product.is_promotion,
+    available: product.available
+  };
+
   const { data, error } = await supabase
     .from('products')
-    .insert([product])
+    .insert([productData])
     .select()
     .single();
 
@@ -206,16 +322,7 @@ export async function createProduct(product: Omit<Product, 'id'>): Promise<Produ
   }
 
   console.log('Produto criado com sucesso:', data);
-  return {
-    ...data,
-    id: String(data.id),
-    categoryId: String(data.categoryId),
-    available: data.available ?? true,
-    isFeatured: data.isFeatured ?? false,
-    isPromotion: data.isPromotion ?? false,
-    description: data.description || '',
-    imageUrl: data.imageUrl || ''
-  };
+  return data;
 }
 
 export async function updateProduct(id: string, product: Partial<Product>): Promise<Product> {
@@ -234,22 +341,14 @@ export async function updateProduct(id: string, product: Partial<Product>): Prom
   }
 
   console.log('Produto atualizado com sucesso:', data);
-  return {
-    ...data,
-    id: String(data.id),
-    categoryId: String(data.categoryId),
-    available: data.available ?? true,
-    isFeatured: data.isFeatured ?? false,
-    isPromotion: data.isPromotion ?? false,
-    description: data.description || '',
-    imageUrl: data.imageUrl || ''
-  };
+  return data;
 }
 
 export async function deleteProduct(id: string): Promise<void> {
   console.log(`Tentando excluir produto com ID: ${id}`);
 
   try {
+    // Método direto - sem verificações extras
     const { error } = await supabase
       .from('products')
       .delete()
@@ -268,190 +367,59 @@ export async function deleteProduct(id: string): Promise<void> {
 }
 
 // Pedidos
-export async function createOrder(order: Omit<Order, 'id' | 'ticketNumber'>): Promise<Order> {
-  const response = await fetchFromApi<ApiResponse>('/orders', {
-    method: 'POST',
-    body: JSON.stringify(order),
-  });
+export async function getOrderById(id: string): Promise<Order | null> {
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('id', id)
+    .single();
 
-  return response.data as Order;
+  if (error) {
+    console.error(`Erro ao buscar pedido ${id}:`, error);
+    throw error;
+  }
+
+  return data;
 }
 
-// Função para salvar pedidos no localStorage
-function saveOrdersToLocalStorage(orders: Order[]) {
+// Função para limpar dados do sistema
+export async function clearSystemData(): Promise<void> {
   try {
-    localStorage.setItem('falecomigo-admin-orders', JSON.stringify(orders));
-    console.log(`${orders.length} pedidos salvos em localStorage`);
+    console.log('Iniciando limpeza de dados do sistema...');
+    
+    // 1. Limpar localStorage
+    localStorage.removeItem(ORDERS_STORAGE_KEY);
+    localStorage.removeItem(STATS_STORAGE_KEY);
+    console.log('Dados locais removidos do localStorage');
+    
+    // 2. Chamar API para limpar dados do servidor
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .gte('created_at', new Date(new Date().setHours(0,0,0,0)).toISOString());
+
+    if (error) {
+      console.error('Erro ao limpar dados no servidor:', error);
+      throw error;
+    }
+    
+    console.log('Dados do sistema limpos com sucesso');
   } catch (error) {
-    console.error('Erro ao salvar pedidos no localStorage:', error);
+    console.error('Erro ao limpar dados do sistema:', error);
+    throw error;
   }
 }
 
-// Função para recuperar pedidos do localStorage
-function getOrdersFromLocalStorage(): Order[] {
-  try {
-    const storedOrders = localStorage.getItem('falecomigo-admin-orders');
-    if (storedOrders) {
-      const orders = JSON.parse(storedOrders);
-      console.log(`${orders.length} pedidos recuperados de localStorage`);
-      return orders;
-    }
-  } catch (error) {
-    console.error('Erro ao recuperar pedidos do localStorage:', error);
-  }
-  return [];
-}
-
-// Função para mesclar pedidos locais com pedidos da API
-function mergeOrders(apiOrders: Order[], localOrders: Order[]): Order[] {
-  if (apiOrders.length === 0) return localOrders;
-  if (localOrders.length === 0) return apiOrders;
-  
-  const apiOrderMap = new Map(apiOrders.map(order => [order.id, order]));
-  
-  for (const localOrder of localOrders) {
-    if (!apiOrderMap.has(localOrder.id)) {
-      apiOrders.push(localOrder);
-    }
-  }
-  
-  return apiOrders.sort((a, b) => {
-    const dateA = new Date(a.createdAt || a.created_at || '').getTime();
-    const dateB = new Date(b.createdAt || b.created_at || '').getTime();
-    return dateB - dateA;
-  });
-}
-
-export async function getOrders(): Promise<Order[]> {
-  try {
-    const localOrders = getOrdersFromLocalStorage();
-    const response = await fetchFromApi<ApiResponse>('/queue');
-    
-    if (!response || !response.orders || !Array.isArray(response.orders)) {
-      console.error('Estrutura de resposta inválida da API de fila:', response);
-      console.log('Usando dados do localStorage como fallback');
-      return localOrders;
-    }
-    
-    console.log('Dados obtidos da fila de pedidos:', response);
-    
-    const apiOrders = response.orders.map((order: any) => ({
-      id: String(order.id),
-      ticketNumber: order.ticket || `T${Date.now().toString().slice(-6)}`,
-      status: (order.status || 'recebido') as OrderStatus,
-      items: (order.items || []).map((item: any) => ({
-        id: String(item.id || crypto.randomUUID()),
-        name: item.name || '',
-        quantity: Number(item.quantity || 1),
-        price: Number(item.price || 0),
-        notes: item.notes || ''
-      })),
-      totalAmount: Number(order.total || 0),
-      customer: {
-        name: order.customerName || 'Cliente',
-        email: order.customerEmail || `${order.customerName?.replace(/\s+/g, '-').toLowerCase() || 'cliente'}@example.com`,
-        phone: order.customerPhone || '',
-        address: ''
-      },
-      paymentMethod: 'pix' as PaymentMethod,
-      paymentStatus: 'paid' as PaymentStatus,
-      created_at: order.createdAt || new Date().toISOString(),
-      userId: '',
-      notes: '',
-      paymentDetails: {}
-    }));
-    
-    if (apiOrders.length === 0 && localOrders.length > 0) {
-      console.log(`API retornou lista vazia, mantendo ${localOrders.length} pedidos do localStorage`);
-      return localOrders;
-    }
-    
-    const mergedOrders = mergeOrders(apiOrders, localOrders);
-    
-    if (mergedOrders.length > 0) {
-      saveOrdersToLocalStorage(mergedOrders);
-      console.log(`Retornando ${mergedOrders.length} pedidos (mesclados)`);
-      return mergedOrders;
-    } else {
-      console.log(`Sem pedidos para exibir após mesclagem`);
-      return [];
-    }
-  } catch (error) {
-    console.error('Erro ao buscar pedidos:', error);
-    const localOrders = getOrdersFromLocalStorage();
-    console.log(`Usando ${localOrders.length} pedidos do localStorage devido a erro na API`);
-    return localOrders;
-  }
-}
-
-export async function getDashboardStats() {
-  try {
-    await syncQueueWithLocalStorage();
-    const orders = await getOrders();
-    
-    let products: Product[] = [];
-    try {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*');
-      
-      if (error) throw error;
-      products = data?.map(product => ({
-        ...product,
-        id: String(product.id),
-        categoryId: String(product.categoryId),
-        available: product.available ?? true,
-        isFeatured: product.isFeatured ?? false,
-        isPromotion: product.isPromotion ?? false,
-        description: product.description || '',
-        imageUrl: product.imageUrl || ''
-      })) || [];
-      
-    } catch (prodError) {
-      console.error('Erro ao buscar produtos:', prodError);
-      const storedStats = localStorage.getItem('falecomigo-admin-stats');
-      if (storedStats) {
-        const stats = JSON.parse(storedStats);
-        products = new Array(stats.productCount).fill({});
-      }
-    }
-
-    const stats = {
-      totalSales: orders?.reduce((sum, order) => sum + (order.totalAmount || 0), 0) || 0,
-      productCount: products?.length || 0,
-      orderCount: orders?.length || 0
-    };
-
-    console.log('Dashboard stats calculado:', stats);
-    localStorage.setItem('falecomigo-admin-stats', JSON.stringify(stats));
-    return stats;
-  } catch (error) {
-    console.error('Erro ao buscar estatísticas do dashboard:', error);
-    try {
-      const storedStats = localStorage.getItem('falecomigo-admin-stats');
-      if (storedStats) {
-        console.log('Usando estatísticas do localStorage devido a erro');
-        return JSON.parse(storedStats);
-      }
-    } catch (e) {
-      console.error('Erro ao recuperar estatísticas do localStorage:', e);
-    }
-    
-    return {
-      totalSales: 0,
-      productCount: 0,
-      orderCount: 0
-    };
-  }
-}
-
+// Variável para controlar o tempo da última sincronização
 let lastSyncTime = 0;
-const MIN_SYNC_INTERVAL = 3000;
+const MIN_SYNC_INTERVAL = 3000; // Mínimo de 3 segundos entre sincronizações
 
+// Sincronizar dados da fila com localStorage
 export async function syncQueueWithLocalStorage(): Promise<void> {
   try {
     const now = Date.now();
     
+    // Verificar se já foi feita uma sincronização recentemente
     if (now - lastSyncTime < MIN_SYNC_INTERVAL) {
       console.log(`Sincronização ignorada - última foi há ${(now - lastSyncTime)/1000}s`);
       return;
@@ -460,46 +428,84 @@ export async function syncQueueWithLocalStorage(): Promise<void> {
     console.log('Sincronizando dados da fila com localStorage...');
     lastSyncTime = now;
     
-    const response = await fetchFromApi<ApiResponse>('/queue/sync');
+    // 1. Obter dados atuais do localStorage
+    const localOrders = getOrdersFromLocalStorage();
     
-    if (!response?.success) {
+    // 2. Buscar dados atualizados da API
+    const response = await fetchApi('/queue/sync');
+    
+    if (!response || !response.success) {
       console.error('Erro na sincronização com a API:', response);
       return;
     }
     
     console.log('Sincronização com API concluída');
+    
+    // 3. Executar getOrders para atualizar dados no localStorage
     await getOrders();
+    
     console.log('Sincronização com localStorage concluída');
+    return;
   } catch (error) {
     console.error('Erro ao sincronizar fila com localStorage:', error);
     throw error;
   }
 }
 
-export async function clearSystemData(): Promise<void> {
+// Dashboard stats
+export async function getDashboardStats() {
   try {
-    console.log('Iniciando limpeza de dados do sistema...');
-    
-    localStorage.removeItem('falecomigo-admin-orders');
-    localStorage.removeItem('falecomigo-admin-stats');
-    console.log('Dados locais removidos do localStorage');
-    
-    const response = await fetchFromApi<ApiResponse>('/queue/clear', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ confirm: true })
-    });
-    
-    if (!response?.success) {
-      console.error('Erro ao limpar dados no servidor:', response);
-      throw new Error('Não foi possível limpar os dados no servidor');
+    // Buscar os pedidos
+    const orders = await getOrders();
+
+    // Buscar produtos ativos
+    const { data: products, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('available', true);
+
+    if (error) {
+      console.error('Erro ao buscar produtos:', error);
+      throw error;
+    }
+
+    // Calcular estatísticas
+    const totalSales = orders?.reduce((sum, order) => sum + order.total_amount, 0) || 0;
+    const productCount = products?.length || 0;
+
+    const stats = {
+      totalSales,
+      productCount,
+      orderCount: orders.length
+    };
+
+    // Armazenar estatísticas para uso futuro
+    try {
+      localStorage.setItem(STATS_STORAGE_KEY, JSON.stringify(stats));
+    } catch (e) {
+      console.error('Erro ao salvar estatísticas no localStorage:', e);
     }
     
-    console.log('Dados do sistema limpos com sucesso:', response);
+    return stats;
   } catch (error) {
-    console.error('Erro ao limpar dados do sistema:', error);
-    throw error;
+    console.error('Erro ao buscar estatísticas do dashboard:', error);
+    
+    // Tentar usar estatísticas salvas anteriormente
+    try {
+      const storedStats = localStorage.getItem(STATS_STORAGE_KEY);
+      if (storedStats) {
+        console.log('Usando estatísticas do localStorage devido a erro');
+        return JSON.parse(storedStats);
+      }
+    } catch (e) {
+      console.error('Erro ao recuperar estatísticas do localStorage:', e);
+    }
+    
+    // Retornar valores padrão em caso de erro
+    return {
+      totalSales: 0,
+      productCount: 0,
+      orderCount: 0
+    };
   }
 } 

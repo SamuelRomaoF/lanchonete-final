@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { OrderTicket } from './queue-storage.js';
+import { OrderTicket } from './queue-storage';
 
 // Interface para pagamentos
 export interface PixPayment {

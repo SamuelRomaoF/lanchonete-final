@@ -1,11 +1,11 @@
+import ProductCard from "@/components/ProductCard";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Category, Product } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useParams } from "wouter";
-import { Category, Product } from "../../shared/schema.js";
-import ProductCard from "../components/ProductCard.js";
-import { Input } from "../components/ui/input.js";
-import { Skeleton } from "../components/ui/skeleton.js";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs.js";
 
 const ProductsList = () => {
   const { categoria } = useParams();
@@ -104,13 +104,14 @@ const ProductsList = () => {
                 filteredProducts.map((product) => (
                   <ProductCard
                     key={product.id}
-                    product={{
-                      ...product,
-                      description: product.description || '',
-                      imageUrl: product.imageUrl || '',
-                      available: true,
-                      categoryId: product.categoryId || ''
-                    }}
+                    id={product.id}
+                    name={product.name}
+                    description={product.description || ""}
+                    price={product.price}
+                    old_price={product.old_price}
+                    image_url={product.image_url || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                    is_featured={product.is_featured}
+                    is_promotion={product.is_promotion}
                   />
                 ))
               ) : (
@@ -141,22 +142,23 @@ const ProductsList = () => {
                   ))
                 ) : (
                   filteredProducts
-                    ?.filter(product => product.categoryId === category.id)
+                    ?.filter(product => product.category_id === category.id)
                     .map((product) => (
                       <ProductCard
                         key={product.id}
-                        product={{
-                          ...product,
-                          description: product.description || '',
-                          imageUrl: product.imageUrl || '',
-                          available: true,
-                          categoryId: product.categoryId || ''
-                        }}
+                        id={product.id}
+                        name={product.name}
+                        description={product.description || ""}
+                        price={product.price}
+                        old_price={product.old_price}
+                        image_url={product.image_url || "https://images.unsplash.com/photo-1568901346375-23c9450c58cd"}
+                        is_featured={product.is_featured}
+                        is_promotion={product.is_promotion}
                       />
                     ))
                 )}
                 
-                {filteredProducts?.filter(product => product.categoryId === category.id).length === 0 && (
+                {filteredProducts?.filter(product => product.category_id === category.id).length === 0 && (
                   <div className="col-span-full text-center py-12">
                     <i className="ri-shopping-basket-line text-4xl text-muted-foreground mb-2"></i>
                     <p className="text-muted-foreground">Nenhum produto encontrado nesta categoria</p>

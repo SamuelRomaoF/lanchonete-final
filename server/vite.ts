@@ -1,17 +1,12 @@
-import express = require('express');
-type Express = import('express').Express;
-import * as fs from "fs";
+import express, { type Express } from "express";
+import fs from "fs";
 import { type Server } from "http";
 import { nanoid } from "nanoid";
-import * as path from "path";
-import { fileURLToPath } from 'url';
-import { createLogger as viteCreateLogger, createServer as viteCreateServer } from "vite";
+import path from "path";
+import { createLogger, createServer as createViteServer } from "vite";
 import viteConfig from "../vite.config";
 
-const viteLogger = viteCreateLogger();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const viteLogger = createLogger();
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -28,15 +23,15 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: [".localhost", ".netlify.app"],
+    allowedHosts: true,
   };
 
-  const viteServer = await viteCreateServer({
+  const vite = await createViteServer({
     ...viteConfig,
     configFile: false,
     customLogger: {
       ...viteLogger,
-      error: (msg: any, options: any) => {
+      error: (msg, options) => {
         viteLogger.error(msg, options);
         process.exit(1);
       },
@@ -45,13 +40,13 @@ export async function setupVite(app: Express, server: Server) {
     appType: "custom",
   });
 
-  app.use(viteServer.middlewares);
+  app.use(vite.middlewares);
   app.use("*", async (req, res, next) => {
     const url = req.originalUrl;
 
     try {
       const clientTemplate = path.resolve(
-        __dirname,
+        import.meta.dirname,
         "..",
         "client",
         "index.html",
@@ -63,17 +58,17 @@ export async function setupVite(app: Express, server: Server) {
         `src="/src/main.tsx"`,
         `src="/src/main.tsx?v=${nanoid()}"`,
       );
-      const page = await viteServer.transformIndexHtml(url, template);
+      const page = await vite.transformIndexHtml(url, template);
       res.status(200).set({ "Content-Type": "text/html" }).end(page);
     } catch (e) {
-      viteServer.ssrFixStacktrace(e as Error);
+      vite.ssrFixStacktrace(e as Error);
       next(e);
     }
   });
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+  const distPath = path.resolve(import.meta.dirname, "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(

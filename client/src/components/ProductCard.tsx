@@ -1,97 +1,107 @@
-import { motion } from 'framer-motion';
-import { useState } from 'react';
-import { useLocation } from 'wouter';
-import { Product } from "../../shared/schema.js";
-import { useCart } from "../context/CartContext.js";
-import { useToast } from "../hooks/use-toast.js";
-import { formatCurrency } from "../lib/utils.js";
-import { Badge } from "./ui/badge.js";
-import { Button } from "./ui/button.js";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useCart } from "@/context/CartContext";
+import { useToast } from "@/hooks/use-toast";
+import { formatCurrency } from "@/lib/utils";
+import { Product } from "@shared/schema";
 
 interface ProductCardProps {
-  product: Product;
-  onAddToCart?: (product: Product) => void;
-  showAddToCart?: boolean;
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  old_price?: number;
+  image_url: string;
+  is_featured?: boolean;
+  is_promotion?: boolean;
 }
 
-const ProductCard = ({ product, onAddToCart, showAddToCart = true }: ProductCardProps) => {
+const ProductCard = ({ 
+  id, 
+  name, 
+  description, 
+  price, 
+  old_price,
+  image_url, 
+  is_featured, 
+  is_promotion 
+}: ProductCardProps) => {
   const { addItem, isItemInCart, getItemQuantity } = useCart();
   const { toast } = useToast();
-  const [, setLocation] = useLocation();
-  const [isHovered, setIsHovered] = useState(false);
   
   // Verificar se o produto já está no carrinho
-  const inCart = isItemInCart(product.id);
-  const quantity = getItemQuantity(product.id);
+  const inCart = isItemInCart(id);
+  const quantity = getItemQuantity(id);
   
-  const handleClick = () => {
-    setLocation(`/products/${product.id}`);
-  };
-
   // Adicionar ao carrinho
-  const handleAddToCart = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (onAddToCart) {
-      onAddToCart(product);
-    } else {
-      addItem(product);
-    }
+  const handleAddToCart = () => {
+    const product: Product = {
+      id,
+      name,
+      description,
+      price,
+      image_url,
+      available: true,
+      is_featured: is_featured || false,
+      is_promotion: is_promotion || false
+    };
+    
+    addItem(product);
     
     toast({
       title: "Produto adicionado",
-      description: `${product.name} foi adicionado ao carrinho`,
+      description: `${name} foi adicionado ao carrinho`,
     });
   };
   
   return (
-    <motion.div
-      className="bg-white rounded-lg shadow-md overflow-hidden cursor-pointer transform transition-transform duration-200 hover:scale-105"
-      whileHover={{ scale: 1.05 }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={handleClick}
-    >
-      <div className="relative">
-        <img 
-          src={product.imageUrl} 
-          alt={product.name} 
-          className="w-full h-48 object-cover"
-        />
-        {product.isPromotion && (
-          <div className="absolute top-0 right-0 bg-red-500 text-white px-2 py-1 text-sm">
-            Promoção
-          </div>
-        )}
-      </div>
+    <div className="bg-card text-card-foreground rounded-xl overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+      <img 
+        src={image_url} 
+        alt={name} 
+        className="w-full h-48 object-cover"
+      />
       
       <div className="p-4">
         <div className="flex justify-between items-start mb-2">
-          <h3 className="font-semibold text-lg">{product.name}</h3>
+          <h3 className="font-semibold text-lg">{name}</h3>
           <div className="flex space-x-1">
-            {product.isFeatured && (
+            {is_featured && (
               <Badge variant="secondary" className="bg-primary text-primary-foreground">
                 POPULAR
               </Badge>
             )}
-            {product.isPromotion && (
+            {is_promotion && (
               <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
                 PROMOÇÃO
               </Badge>
             )}
           </div>
         </div>
-        <p className="text-muted-foreground text-sm mb-3">{product.description}</p>
+        <p className="text-muted-foreground text-sm mb-3">{description}</p>
         <div className="flex justify-between items-center">
           <div>
-            {product.isPromotion && product.oldPrice && (
-              <span className="text-gray-500 line-through mr-2">
-                {formatCurrency(product.oldPrice)}
+            <span className="font-bold text-lg">{formatCurrency(price)}</span>
+            {old_price && (
+              <span className="text-muted-foreground line-through text-sm ml-2">
+                {formatCurrency(old_price)}
               </span>
             )}
-            <span className="font-bold text-lg">{formatCurrency(product.price)}</span>
           </div>
           
-          {showAddToCart && (
+          {inCart ? (
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">{quantity} no carrinho</span>
+              <Button 
+                variant="outline"
+                size="sm"
+                className="text-primary border-primary hover:bg-primary hover:text-primary-foreground"
+                onClick={handleAddToCart}
+              >
+                + Adicionar
+              </Button>
+            </div>
+          ) : (
             <Button 
               className="bg-primary hover:bg-primary-dark text-white font-medium"
               onClick={handleAddToCart}
@@ -101,7 +111,7 @@ const ProductCard = ({ product, onAddToCart, showAddToCart = true }: ProductCard
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 

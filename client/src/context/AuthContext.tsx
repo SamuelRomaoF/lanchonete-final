@@ -1,31 +1,35 @@
+import { supabase } from "@/lib/supabase";
 import { Session, User as SupabaseUser } from "@supabase/supabase-js";
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
-import { User } from "../../shared/schema.js";
-import { supabase } from "../lib/supabase.js";
 
-interface AuthProviderProps {
-  children: ReactNode;
+interface User {
+  id: string;
+  email: string;
+  type: 'cliente' | 'admin';
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (data: { name: string; email: string; password: string }) => Promise<void>;
-  logout: () => void;
+  login: (email: string, password: string) => Promise<User>;
+  logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   session: Session | null;
 }
 
-const AuthContext = createContext<AuthContextType | null>(null);
+interface AuthProviderProps {
+  children: ReactNode;
+}
 
-export function useAuth() {
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
+  if (context === undefined) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
   }
   return context;
-}
+};
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
@@ -39,10 +43,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
     return {
       id: supabaseUser.id,
       email: supabaseUser.email || "",
-      name: supabaseUser.user_metadata?.name || "Usuário",
-      type: 'admin',
-      address: "",
-      phone: "",
+      // Por padrão, consideramos todos usuários autenticados como admin
+      // Em uma implementação mais robusta, você pode verificar claims ou metadados
+      type: 'admin'
     };
   };
   
@@ -86,55 +89,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
     };
   }, []);
   
-  const login = async (email: string, password: string) => {
+  const login = async (email: string, password: string): Promise<User> => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
       });
-
-      if (!response.ok) {
-        throw new Error('Credenciais inválidas');
+      
+      if (error) {
+        console.error("Erro no login:", error);
+        throw new Error(error.message);
       }
-
-      const data = await response.json();
-      setUser(data.user);
+      
+      if (!data.user || !data.session) {
+        throw new Error("Falha na autenticação");
+      }
+      
+      const userData = convertSupabaseUser(data.user);
+      setUser(userData);
+      setSession(data.session);
+      
+      if (!userData) {
+        throw new Error("Falha ao processar dados do usuário");
+      }
+      
+      return userData;
     } catch (error) {
-      console.error('Erro no login:', error);
+      console.error("Erro durante o login:", error);
       throw error;
     }
   };
   
-  const register = async (data: { name: string; email: string; password: string }) => {
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error('Erro ao criar conta');
-      }
-
-      const responseData = await response.json();
-      setUser(responseData.user);
-    } catch (error) {
-      console.error('Erro no registro:', error);
-      throw error;
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error("Erro ao fazer logout:", error);
     }
-  };
-  
-  const logout = () => {
+    
     setUser(null);
+    setSession(null);
   };
   
   const value = {
     user,
     loading,
     login,
-    register,
     logout,
     checkAuth,
     session,
