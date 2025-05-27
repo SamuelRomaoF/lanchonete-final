@@ -1,5 +1,6 @@
 import { Category, Order, Product } from '@shared/schema';
 import { supabase } from './supabase';
+import { mapAppProductToDbProduct, mapDbCategoryToAppCategory, mapDbOrderToAppOrder, mapDbProductToAppProduct } from '@/types/supabase-types';
 
 // Chaves para localStorage
 export const ORDERS_STORAGE_KEY = 'falecomigo-admin-orders';
@@ -77,7 +78,7 @@ export async function getCategories(): Promise<Category[]> {
     throw error;
   }
 
-  return data || [];
+  return data.map(category => mapDbCategoryToAppCategory(category) as Category);
 }
 
 export async function getFeaturedProducts(): Promise<Product[]> {
@@ -266,17 +267,30 @@ export async function deleteCategory(id: string): Promise<void> {
 
 // Produtos
 export async function getProducts(): Promise<Product[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .order('name');
+  try {
+    console.log('Buscando produtos...');
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('name');
 
-  if (error) {
+    if (error) {
+      console.error('Erro ao buscar produtos:', error);
+      throw error;
+    }
+
+    console.log(`Encontrados ${data?.length || 0} produtos`);
+    return data.map(product => {
+      const mappedProduct = mapDbProductToAppProduct(product);
+      return {
+        ...mappedProduct,
+        old_price: mappedProduct.old_price === null ? undefined : mappedProduct.old_price
+      } as Product;
+    });
+  } catch (error) {
     console.error('Erro ao buscar produtos:', error);
     throw error;
   }
-
-  return data || [];
 }
 
 export async function getProductById(id: string): Promise<Product | null> {
@@ -297,18 +311,9 @@ export async function getProductById(id: string): Promise<Product | null> {
 export async function createProduct(product: Omit<Product, 'id'>): Promise<Product> {
   console.log('Tentando criar produto:', product);
 
-  // Converter para camelCase antes de enviar
-  const productData = {
-    name: product.name,
-    description: product.description || '',
-    price: product.price,
-    oldPrice: product.old_price,
-    imageUrl: product.image_url || '',
-    categoryId: product.category_id,
-    isFeatured: product.is_featured,
-    isPromotion: product.is_promotion,
-    available: product.available
-  };
+  // Converter para snake_case usando o mapeador
+  const productData = mapAppProductToDbProduct(product);
+  console.log('Dados preparados para o Supabase:', productData);
 
   const { data, error } = await supabase
     .from('products')
@@ -322,7 +327,12 @@ export async function createProduct(product: Omit<Product, 'id'>): Promise<Produ
   }
 
   console.log('Produto criado com sucesso:', data);
-  return data;
+  // Converter de volta para o tipo Product da aplicação
+  const mappedProduct = mapDbProductToAppProduct(data);
+  return {
+    ...mappedProduct,
+    old_price: mappedProduct.old_price === null ? undefined : mappedProduct.old_price
+  } as Product;
 }
 
 export async function updateProduct(id: string, product: Partial<Product>): Promise<Product> {
@@ -508,4 +518,20 @@ export async function getDashboardStats() {
       orderCount: 0
     };
   }
+}
+
+export async function getAllOrders(): Promise<Order[]> {
+  console.log('Buscando todos os pedidos...');
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Erro ao buscar pedidos:', error);
+    throw error;
+  }
+
+  console.log(`Encontrados ${data?.length || 0} pedidos`);
+  return data || [];
 } 

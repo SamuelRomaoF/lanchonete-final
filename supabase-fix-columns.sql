@@ -160,4 +160,44 @@ BEGIN
     EXCEPTION WHEN undefined_column THEN
         -- Coluna não existe
     END;
+END $$;
+
+-- Verificar o esquema atual
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'products';
+
+-- Corrigir colunas na tabela products
+ALTER TABLE products RENAME COLUMN IF EXISTS "categoryId" TO category_id;
+ALTER TABLE products RENAME COLUMN IF EXISTS "oldPrice" TO old_price;
+ALTER TABLE products RENAME COLUMN IF EXISTS "imageUrl" TO image_url;
+ALTER TABLE products RENAME COLUMN IF EXISTS "isFeatured" TO is_featured;
+ALTER TABLE products RENAME COLUMN IF EXISTS "isPromotion" TO is_promotion;
+ALTER TABLE products RENAME COLUMN IF EXISTS "createdAt" TO created_at;
+ALTER TABLE products RENAME COLUMN IF EXISTS "updatedAt" TO updated_at;
+
+-- Verificar o esquema atual
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'orders';
+
+-- Corrigir colunas na tabela orders
+ALTER TABLE orders RENAME COLUMN IF EXISTS "createdAt" TO created_at;
+ALTER TABLE orders RENAME COLUMN IF EXISTS "customerName" TO customer_name;
+ALTER TABLE orders RENAME COLUMN IF EXISTS "totalAmount" TO total_amount;
+ALTER TABLE orders RENAME COLUMN IF EXISTS "ticketNumber" TO ticket_number;
+
+-- Verificar o esquema atual
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'categories';
+
+-- Corrigir colunas na tabela categories
+ALTER TABLE categories RENAME COLUMN IF EXISTS "createdAt" TO created_at;
+ALTER TABLE categories RENAME COLUMN IF EXISTS "updatedAt" TO updated_at;
+
+-- Notifique se a operação foi concluída
+DO $$
+BEGIN
+  RAISE NOTICE 'Colunas atualizadas com sucesso.';
 END $$; 

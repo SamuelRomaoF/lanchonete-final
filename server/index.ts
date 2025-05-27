@@ -6,12 +6,18 @@ import { fileURLToPath } from 'url';
 import api from './api';
 import { setupAuth } from "./auth";
 import { supabase } from './lib/supabase';
+import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3001;
+const isDevelopment = process.env.NODE_ENV === 'development';
+
+// Verificar se o diretório dist existe
+const distDir = path.join(__dirname, '../client/dist');
+const distExists = fs.existsSync(distDir) && fs.existsSync(path.join(distDir, 'index.html'));
 
 // Configurar CORS e headers de segurança
 app.use(cors({
@@ -36,16 +42,63 @@ app.use('/api', api);
 // Configurar autenticação
 setupAuth(app);
 
-// Servir arquivos estáticos do diretório dist
-app.use(express.static(path.join(__dirname, '../client/dist')));
-
-// Rota catch-all para o SPA
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api')) {
-    return res.status(404).json({ error: 'API endpoint não encontrado' });
+// Servir arquivos estáticos do diretório dist se existirem
+if (distExists) {
+  console.log('✅ Servindo arquivos estáticos do diretório client/dist');
+  app.use(express.static(distDir));
+  
+  // Rota catch-all para o SPA
+  app.get('*', (req, res) => {
+    if (req.path.startsWith('/api')) {
+      return res.status(404).json({ error: 'API endpoint não encontrado' });
+    }
+    res.sendFile(path.join(distDir, 'index.html'));
+  });
+} else {
+  console.log('⚠️ Cliente não foi compilado (client/dist não existe)');
+  
+  if (isDevelopment) {
+    // Em desenvolvimento, redirecionar para o servidor de desenvolvimento do Vite
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: 'API endpoint não encontrado' });
+      }
+      res.send(`
+        <html>
+          <head>
+            <title>Redirecionando para o servidor de desenvolvimento</title>
+            <style>
+              body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; }
+              .container { text-align: center; margin-top: 50px; }
+              .btn { padding: 10px 20px; background: #4CAF50; color: white; text-decoration: none; border-radius: 4px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <h1>Servidor backend está rodando!</h1>
+              <p>O diretório client/dist não foi encontrado. Para rodar o projeto completo:</p>
+              <ol>
+                <li>Execute <code>npm run build:client</code> para construir o frontend, ou</li>
+                <li>Execute <code>npm run dev:client</code> em outro terminal para iniciar o servidor de desenvolvimento do cliente</li>
+              </ol>
+              <p>
+                <a href="http://localhost:5173" class="btn">Ir para o servidor de desenvolvimento (porta 5173)</a>
+              </p>
+            </div>
+          </body>
+        </html>
+      `);
+    });
+  } else {
+    // Em produção, mostrar erro
+    app.get('*', (req, res) => {
+      if (req.path.startsWith('/api')) {
+        return res.status(404).json({ error: 'API endpoint não encontrado' });
+      }
+      res.status(500).send('Erro: Arquivos do frontend não encontrados. Execute npm run build antes de iniciar em produção.');
+    });
   }
-  res.sendFile(path.join(__dirname, '../client/dist/index.html'));
-});
+}
 
 // Tratamento de erros
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
@@ -68,6 +121,10 @@ async function startServer() {
 
     server.listen(port, () => {
       console.log(`Servidor rodando em http://localhost:${port}`);
+      
+      if (!distExists && isDevelopment) {
+        console.log(`⚠️ Frontend não encontrado. Execute 'npm run build:client' ou 'npm run dev:client' em outro terminal.`);
+      }
     });
 
     server.on('error', (error: any) => {

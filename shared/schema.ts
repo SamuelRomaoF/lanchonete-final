@@ -21,7 +21,7 @@ export interface User {
   address?: string;
   phone?: string;
   type: UserType;
-  createdAt: Date;
+  created_at: Date;
 }
 
 export interface Category {
@@ -38,16 +38,11 @@ export interface Product {
   description?: string;
   price: number;
   old_price?: number;
-  oldPrice?: number;
   category_id?: string;
-  categoryId?: string;
   available: boolean;
   is_featured: boolean;
-  isFeatured?: boolean;
   is_promotion: boolean;
-  isPromotion?: boolean;
   image_url?: string;
-  imageUrl?: string;
   created_at?: string;
   updated_at?: string;
 }
@@ -98,7 +93,7 @@ export const userSchema = z.object({
   address: z.string().optional(),
   phone: z.string().optional(),
   type: z.enum(["cliente", "admin"]).default("cliente"),
-  createdAt: z.date().optional()
+  created_at: z.date().optional()
 });
 
 export const categorySchema = z.object({
@@ -115,16 +110,11 @@ export const productSchema = z.object({
   description: z.string().optional(),
   price: z.number().positive("Preço deve ser um valor positivo"),
   old_price: z.number().positive().optional(),
-  oldPrice: z.number().positive().optional(),
   category_id: z.string(),
-  categoryId: z.string(),
   available: z.boolean().default(true),
   is_featured: z.boolean().default(false),
-  isFeatured: z.boolean().optional(),
   is_promotion: z.boolean().default(false),
-  isPromotion: z.boolean().optional(),
   image_url: z.string().url().optional(),
-  imageUrl: z.string().url().optional(),
   created_at: z.string().optional(),
   updated_at: z.string().optional()
 });
@@ -163,9 +153,9 @@ export const orderSchema = z.object({
 });
 
 // Schemas para inserção
-export const insertUserSchema = userSchema.omit({ id: true, createdAt: true });
+export const insertUserSchema = userSchema.omit({ id: true, created_at: true });
 export const insertCategorySchema = categorySchema.omit({ id: true, created_at: true, updated_at: true });
-export const insertProductSchema = productSchema.omit({ id: true, createdAt: true, updatedAt: true });
+export const insertProductSchema = productSchema.omit({ id: true, created_at: true, updated_at: true });
 export const insertOrderSchema = orderSchema.omit({ id: true, created_at: true });
 
 // Tipos de Inserção
